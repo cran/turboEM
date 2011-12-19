@@ -1,0 +1,23 @@
+export(
+  "turboem",
+  "pars",
+  "error",
+  "stderror",
+  "grad",
+  "hessian",
+  "dataprof")
+
+importFrom("numDeriv", grad, hessian)
+importFrom("graphics", boxplot, pairs)
+
+S3method(print, turbo)
+S3method(plot, turbo)
+S3method(pars, turbo)
+S3method(grad, turbo)
+S3method(hessian, turbo)
+S3method(stderror, turbo)
+S3method(error, turbo)
+S3method(summary, turbosim)
+S3method(boxplot, turbosim)
+S3method(dataprof, turbosim)
+S3method(pairs, turbosim)

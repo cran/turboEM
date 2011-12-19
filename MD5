@@ -1,0 +1,13 @@
+91784eacf935587afac27b7abf1cba4a *DESCRIPTION
+89a9f149f335f4a4bf2554c416ba81b1 *LICENSE
+e631703b304d893d5488c9809d04d6ef *NAMESPACE
+c260c53270f88870849e495cf0399c6d *NEWS
+7a4efe996ad31c206ec7dbbf74b6fd1c *R/turboClassMethods.R
+52d1d334c77392ad09a6756fcdf95402 *R/turboem.R
+a0285f86cbb60f970c129da0a8fd4baf *R/turbosimClassMethods.R
+d7ceba60f852409bfb0154844899ff6b *inst/doc/turboEM.Rnw
+be7ee87e5c388b28c880496a4e015b57 *inst/doc/turboEM.pdf
+39b9234148f62a647684b2c77eb2640b *man/internal.Rd
+07de8f3a49863badb15672be9aa90e3c *man/turbo.Rd
+c339eb3bbd2d563463164a3cf0ccb3cf *man/turboem.Rd
+6710789bd9ce9453e54907ba3c74c728 *man/turbosim.Rd
