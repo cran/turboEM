@@ -1,5 +1,5 @@
 %\VignetteIndexEntry{turboEM Tutorial}
-%\VignetteDepends{setRNG}
+%\VignetteDepends{setRNG,doSNOW}
 %\VignetteKeywords{optimization, EM algorithm, MM algorithm, fixed-point iteration}
 %\VignettePackage{turboEM}
 
@@ -10,7 +10,11 @@
 %\usepackage{natbib}
 \usepackage{graphicx}
 \usepackage{color} %% red, green, and blue (for screen display) and cyan, magenta, and yellow
+\definecolor{Navy}{rgb}{0,0,0.8}
 \usepackage{hyperref}
+\hypersetup{colorlinks=true, urlcolor={Navy}, linkcolor={Navy}, citecolor={Navy}}
+
+\parskip 7.2pt
 
 \newcommand{\compresslist}{%
 %\setlength{\itemsep}{1pt}%
@@ -33,8 +37,8 @@
 \newcommand{\ei}{\end{itemize}}
 \renewcommand{\baselinestretch}{1}
 
-\title{turboEM: An R package to accelerate the EM algorithm}
-% \author{Jennifer F. Bobb}
+\title{\texttt{turboEM}: A Suite of Convergence Acceleration Schemes for EM and MM algorithms}
+\author{Jennifer F. Bobb}
 \date{}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -47,80 +51,37 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Introduction}
-In the R package ``turboEM'' four schemes to accelerate the EM algorithm have been implemented.
-The four accelerators are SQUAREM~\cite{VaradhanRoland2008}, Parabolic EM~\cite{BerlinetRoland2009}, a quasi-Newton algorithm~\cite{Zhou2011}, and Dynamic ECME~\cite{HeLiu2010}. The main function \texttt{turboem()} allows the user to fit one or more of the acceleration schemes for a given starting value and fixed point mapping function. The \texttt{turboem()} function outputs an object of class \texttt{turbo}. Methods implemented for the \texttt{turbo} class are \texttt{print}, \texttt{pars}, \texttt{error}, \texttt{plot}, \texttt{grad}, \texttt{hessian}, and \texttt{stderror}.
+\noindent The R package \texttt{turboEM} implements four methods to accelerate EM and MM algorithms: SQUAREM~\cite{VaradhanRoland2008}, Parabolic EM~\cite{BerlinetRoland2009}, a quasi-Newton algorithm~\cite{Zhou2011}, and Dynamic ECME~\cite{HeLiu2010}.
 
-We have also developed methods to summarize and display results from a simulation study comparing accelerators. For an object resulting from a simulation study of class \texttt{turbosim}, the methods \texttt{summary}, \texttt{boxplot}, \texttt{dataprof}, and \texttt{pairs} have been implemented.
+In the first part of this document, we illustrate how to use \texttt{turboEM} to apply the acceleration schemes through an extended example. We show how to (i) apply each state-of-the-art accelerator using a single function call, (ii) compare the algorithms' solutions and compute standard errors, (iii) specify different convergence criteria and stopping rules, and (iv) run the acceleration schemes in parallel in order to make computation fast and efficient.
 
-In this document we first provide an overview of the \texttt{turbem} function. We then demonstrate its use through an example. Last, we demonstrate how a simulation study to compare acceleration schemes may be conducted and results visualized using the class \texttt{turbosim} and its corresponding methods.
+In the second part, we illustrate how \texttt{turboEM} may be used as a tool for conducting benchmark studies to critically compare the acceleration schemes. We show how (i) a benchmark study can be run using a simple function call, (ii) the study can be made more efficient through parallelization, and (iii) how to apply simple and sophisticated metrics for summarizing and visualizing the benchmark study results.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Implementation}
-First load the \texttt{turboEM} R package, which includes the \texttt{turboem} function and its associated methods.
+\section{Poisson mixture distribution}
+First, load the \texttt{turboEM} package into R.
 <<load>>=
-##source("~/Dropbox/GSoC_EMacceleration/Overall Function/overallFunction.R")
-##source("~/Dropbox/GSoC_EMacceleration/Overall Function/turboClassMethods.R")
 library(turboEM)
 @
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection*{Usage}
-<<showcode, eval=FALSE>>=
-turboem(par, fixptfn, objfn, method = c("em", "squarem", "pem", "decme", "qn"), boundary, pconstr = NULL, project = NULL, ...,
-  control.method = replicate(length(method),list()), control.run = list())
+You can get a brief overview of the main function \texttt{turboem} and the associated methods by typing
+<<help, eval=FALSE>>=
+help(package="turboEM")
 @
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection*{Arguments}
-\bi\compresslist
-\item \texttt{par}: A vector of parameters denoting the initial guess for the fixed point
-  \item \texttt{fixptfn}: A vector function $F$ that denotes the fixed-point mapping. This function should accept a parameter vector as input and should return a parameter vector of the same length. This function defines the fixed-point iteration $x_{k+1} = F(x_k)$. In the case of EM algorithm, $F$ defines a single E- and M-step.
-    \item \texttt{objfn}: This is a scalar function, $L$, that denotes a ``merit'' function which attains its local minimum at the fixed-point of $F$.  This function should accept a parameter vector as input and should return a scalar value.  In the EM algorithm, the merit function $L$ is the negative log-likelihood. In some problems, a natural merit function may not exist. However, this argument is required for all of the algorithms *except* SQUAREM (which defaults to SQUAREM-2 if \texttt{objfn} not provided) and EM.
-      \item \texttt{method}: Specifies which algorithm(s) will be applied. Must be a vector containing one or more of \texttt{c("em", "squarem", "pem", "decme", "qn")}.
-        \item \texttt{boundary}: Argument required for Dynamic ECME (\texttt{"decme"}) only. Function to define the subspaces over which the line search is conducted.
-          \item \texttt{pconstr}: Optional function for defining boundary constraints on parameter values. Function maps a vector of parameter values to TRUE if constraints are satisfied. Note that this argument is only used for SQUAREM (\texttt{squarem}), Parabolic EM (\texttt{pem}), and quasi-Newton (\texttt{qn}) algorithms, and it has no effect on the other algorithms.
-          \item \texttt{project}: Optional function for defining a projection that maps an out-of-bound parameter value into the constrained parameter space. Requires the \texttt{pconstr} argument to be specified in order for the \texttt{project} to be applied.
-          \item \texttt{control.method}: if \texttt{method = c(method1, method2, ...)}, then \texttt{conrol.method = list(list1, list2, ...)} where \texttt{list1} is the list of control parameters for \texttt{method1}, \texttt{list2} is the list of control parameters for \texttt{method2}, and so on. If \texttt{length(method) == 1}, then \texttt{control.method} is the list of control parameters for the acceleration scheme.
-            \item \texttt{control.run}: A list of control parameters for convergence and stopping the algorithms. See *Details* under \texttt{help("turboem")} and Section~\ref{sec:stopcrit} below.
-          \item \ldots: Arguments passed to \texttt{fixptfn} and \texttt{objfn}
-
-\ei
-\subsection*{Value}
-The function \texttt{turboem} returns an object of class \texttt{turbo}. An object of class \texttt{turbo} is a list containing at least the following components:
-\bi\compresslist
- \item \texttt{fail}: A vector of logical values whose $j$th element indicates whether algorithm $j$ failed (produced an error)
-   \item \texttt{value.objfn}: A vector of the value of the objective function at termination for each algorithm
-    \item \texttt{itr}: A vector of the number of iterations completed for each algorithm
-      \item \texttt{fpeval}: A vector of the number of fixed-point evaluations completed for each algorithm
-        \item \texttt{objfeval}: A vector of the number of objective function evaluations completed for each algorithm
-     \item \texttt{convergence}: A vector of logical values whose $j$th element indicates whether algorithm $j$ satisfied the convergence criterion before termination
-    \item \texttt{runtime}: A matrix whose $j$th row contains the ``user'', ``system'', and ``elapsed'' time for running the $j$th algorithm
-     \item \texttt{errors}: A vector whose $j$th element is either NA or contains the error message from running the $j$th algorithm
-      \item \texttt{pars}: A matrix whose $j$th row contains the fixed-point parameter values at termination for the $j$th algorithm
-       \item \texttt{trace.objfval}: if \texttt{control.run[["keep.objfval"]]=TRUE}, contains a list whose $j$th component is a vector of objective function values across iterations for the $j$th algorithm
-\ei
-The list will also contain the components \texttt{method}, \texttt{control.method}, \texttt{control.run}, \texttt{fixptfn}, \texttt{objfn}, \texttt{pconstr}, and \texttt{project}, which were provided as arguments for \texttt{turboem}.
-% \subsection*{Defaults}
-% \color{magenta}
-% I will add this subsection later. Here we can describe the default implementations for each of the EM accelerators.
-% \color{black}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Example}
-The example we consider is a mixture of two Poisson distributions. Data are from Hasselblad (JASA 1969).
+\subsection{Example data}
+Let's consider a simple example of speeding up the EM algorithm for estimating parameters of a mixture of two Poisson distributions. Here are data from Hasselblad (1969).
 <<data>>=
-poissmix.dat <- data.frame(death=0:9, freq=c(162,267,271,185,111,61,27,8,3,1))
+poissmix.dat <- data.frame(death=0:9,
+			   freq=c(162,267,271,185,111,61,27,8,3,1))
 y <- poissmix.dat$freq
-## number of parameters
-npar <- 3
 @
 The fixed point mapping of the EM algorithm may be coded as
 <<fixptfn>>=
 fixptfn <- function(p, y) {
 	pnew <- rep(NA,3)
 	i <- 0:(length(y)-1)
-	zi <- p[1]*exp(-p[2])*p[2]^i / (p[1]*exp(-p[2])*p[2]^i + (1 - p[1])*exp(-p[3])*p[3]^i)
+	denom <- p[1]*exp(-p[2])*p[2]^i + (1 - p[1])*exp(-p[3])*p[3]^i
+	zi <- p[1]*exp(-p[2])*p[2]^i / denom
 	pnew[1] <- sum(y*zi)/sum(y)
 	pnew[2] <- sum(y*i*zi)/sum(y*zi)
 	pnew[3] <- sum(y*i*(1-zi))/sum(y*(1-zi))
@@ -128,45 +89,52 @@ fixptfn <- function(p, y) {
 	return(pnew)
 }
 @
-The objective function to be minimized (negative log-likelihood) is as follows.
+The objective function to be minimized (negative log-likelihood) for the Poisson mixture is given by
 <<objfn>>=
 objfn <- function(p, y) {
 	i <- 0:(length(y)-1)
-	loglik <- y*log(p[1]*exp(-p[2])*p[2]^i/exp(lgamma(i+1)) + (1 - p[1])*exp(-p[3])*p[3]^i/exp(lgamma(i+1)))
+	loglik <- y*log(p[1]*exp(-p[2])*p[2]^i/exp(lgamma(i+1)) +
+			(1 - p[1])*exp(-p[3])*p[3]^i/exp(lgamma(i+1)))
 	return ( -sum(loglik) )
 }
 @
-\subsection{Illustration of basic features}
-First, we demonstrate how to use \texttt{turboem} to fit the EM algorithm as well as the SQUAREM and Parabolic EM acceleration schemes, using the default settings for each algorithm.
+%\subsection{Apply acceleration schemes using a single call}
+\subsection{Illustration of basic features of \texttt{turboem}}
+First, let's use \texttt{turboem} to fit the EM algorithm as well as the acceleration schemes SQUAREM and Parabolic EM, using the default settings for each algorithm.
 <<fit1>>=
 res <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn,
 	       method=c("em", "squarem", "pem"), y=y)
 options(digits=13)
 res
 @
-We see that the EM algorithm did not achieve convergence at the default tolerance within the allotted 1500 iterations.
+For this problem with this starting guess for the parameter values, the EM algorithm does not achieve convergence at the default tolerance within the allotted 1500 iterations. On the other hand, both Parabolic EM and SQUAREM do converge. We'll talk more about convergence issues, including how to use different convergence rules (or even specify your own) later on. Even in this simple example, the accelerator algorithms provide a substantial speed-up.
 
-Using the \texttt{pars} method, we can look at the parameter values obtained across the three algorithms:
+%\subsection{Methods for handling output and checking solutions}
+The \texttt{turboem} function outputs an object of class \texttt{turbo}. Different methods for handling the output are available, which we will now explore.
+Let's first look at the parameter values obtained across the three algorithms using the \texttt{pars} method.
 <<pars>>=
 pars(res)
 @
-We can also compute the gradient, hessian, and standard error estimates for the parameter values.
+We can also compute the gradient, Hessian, and standard error estimates for the parameter values.
 <<showmethods>>=
 options(digits=7)
 grad(res)
 hessian(res)
 stderror(res)
 @
-We can also compare the objective function value over time across the different methods. To do this, we must specify that we would like \texttt{turboem} to store the computed value at each iteration.
+We might be interested in exploring the algorithms' histories by plotting the objective function values over time. Because the default settings of the algorithms do not keep the objective function values at each iteration (and because not all algorithms require an objective function to be provided),  we must specify that we would like \texttt{turboem} to track these values over time using the \texttt{keep.objfval} argument of the control parameters.
 \begin{center}
 <<plot, fig=TRUE, width=5, height=4, echo=TRUE>>=
-res1 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn, method=c("em", "squarem", "pem"), y=y,
+res1 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn,
+		method=c("em", "squarem", "pem"), y=y,
 		control.run=list(keep.objfval=TRUE))
 res1
 plot(res1, xlim=c(0.001, 0.02))
 @
 \end{center}
-In order to apply the dynamic ECME acceleration scheme, one must specify the subspace over which line searches will be conducted. This is done through specification of the \texttt{boundary} function. Given the current parameter value \texttt{par} and the direction of the search \texttt{dr}, the function defining the subspace at each iteration for this example is given by
+
+Up until this point, we have not considered the Dynamic ECME acceleration scheme. Dynamic ECME requires an additional input in order to run. For Dynamic ECME, we must specify the subspace over which line searches will be conducted, which is done through a \texttt{boundary} function.
+For this example, the function defining the subspace for a given parameter value \texttt{par} and a given search direction \texttt{dr} is given by
 <<boundary>>=
 boundary <- function(par, dr) {
 	lower <- c(0, 0, 0)
@@ -176,82 +144,92 @@ boundary <- function(par, dr) {
 	return(c(low1, upp1))
 }
 @
-We can now use \texttt{turboem} for the Dynamic ECME algorithm, as follows.
+We may now use \texttt{turboem} for the Dynamic ECME algorithm.
 <<fit1>>=
-res2 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn, boundary=boundary, method="decme", y=y)
+res2 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn,
+		boundary=boundary, method="decme", y=y)
 options(digits=13)
 res2
 @
-For some problems, an objective function may not be available. Only SQUAREM and EM do not require an objective function to be provided. The other algorithms, parabolic EM, quasi-Newton, and Dynamic ECME, will produce an error message if no objective function is provided.
+
+For some problems, an objective function may not be available. Only SQUAREM and EM do not require an objective function to be provided. The other algorithms (parabolic EM, quasi-Newton, and Dynamic ECME) will produce an error message if no objective function is given.
 <<noobjfn>>=
 res3 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, boundary=boundary, y=y)
 res3
+@
+If we did not know the reason certain algorithms failed, we can call the \texttt{error} method to find out.
+<<errorcall>>=
 error(res3)
 @
 
 In certain circumstances, quasi-Newton may produce invalid parameter values (e.g. values outside the parameter space). For example, if we use as a starting value a point near the boundary of the parameter space, quasi-Newton will produce an error:
 <<noobjfn>>=
-res4 <- turboem(par=c(0.9, 1, 3), fixptfn=fixptfn, objfn=objfn, boundary=boundary, y=y)
+res4 <- turboem(par=c(0.9, 1, 3), fixptfn=fixptfn, objfn=objfn,
+		boundary=boundary, y=y)
 res4
 @
 Invalid parameter values at a particular iteration of quasi-Newton typically yields the following error message
 <<err>>=
 error(res4)
 @
-One way to rectify this problem is to include the \texttt{pconstr} argument, which defines the bounds of the parameter space
+One way to rectify this problem is to include the \texttt{pconstr} argument, which defines the bounds of the parameter space.
 <<fit3>>=
 pconstr <- function(par) {
 	lower <- c(0, 0, 0)
 	upper <- c(1, Inf, Inf)
 	return(all(lower < par & par < upper))
 }
-res5 <- turboem(par=c(0.9, 1, 3), fixptfn=fixptfn, objfn=objfn, boundary=boundary, y=y, pconstr=pconstr)
+res5 <- turboem(par=c(0.9, 1, 3), fixptfn=fixptfn, objfn=objfn,
+		boundary=boundary, y=y, pconstr=pconstr)
 res5
 @
 
-\subsection{Alternative stopping criteria}
+\subsection{Convergence criteria and alternative stopping rules}
 \label{sec:stopcrit}
 Stopping criteria for each algorithm may be specified through the \texttt{control.run} argument. Default values of \texttt{control.run} are:
 \begin{verbatim}
-   convtype="parameter",
-   tol=1.0e-07,
-   stoptype="maxiter",
-   maxiter=1500,
-   maxtime=60,
-   convfn.user=NULL,
-   stopfn.user=NULL,
-   trace=FALSE,
-   keep.objfval=FALSE.
+   convtype = "parameter",
+   tol = 1.0e-07,
+   stoptype = "maxiter",
+   maxiter = 1500,
+   maxtime = 60,
+   convfn.user = NULL,
+   stopfn.user = NULL,
+   trace = FALSE,
+   keep.objfval = FALSE.
 \end{verbatim}
 
-There are two ways the algorithm will terminate. Either the algorithm will terminate if convergence has been achieved, or the algorithm will terminate if convergence has not been achieved within a pre-specified maximum number of iterations or maximum running time (alternative stopping criterion).
-At each iteration for each acceleration scheme, both the convergence criterion and the alternative stopping criterion will be checked.
-The arguments \texttt{convtype}, \texttt{tol}, and \texttt{convfn.user} control the convergence criterion. The arguments \texttt{stoptype}, \texttt{maxiter}, \texttt{maxtime}, and \texttt{stopfn.user} control the alternative stopping criterion.
+There are two ways the algorithm will terminate. Either the algorithm will terminate if convergence has been achieved, or the algorithm will terminate if convergence has not been achieved within a pre-specified maximum number of iterations or maximum running time (alternative stopping rule).
+At each iteration for each acceleration scheme, both the convergence criterion and the alternative stopping rule will be checked.
+The arguments \texttt{convtype}, \texttt{tol}, and \texttt{convfn.user} control the convergence criterion. The arguments \texttt{stoptype}, \texttt{maxiter}, \texttt{maxtime}, and \texttt{stopfn.user} control the alternative stopping rule.
 
-Two types of convergence criteria have been implemented, with an option for the user to define his/her own convergence criterion. If \texttt{convtype="parameter"} (the default setting), then the default convergence criterion is to terminate if
-%\texttt{sqrt(crossprod(new-old)) < tol}, where \texttt{new} denotes the current value of the fixed point and \texttt{old} denotes the previous fixed-point value.
-at the first iteration $n$ satisfying
+\subsubsection{Convergence criteria}
+Two types of convergence criteria have been implemented, as well as an option for a user-defined criterion. If \texttt{convtype = "parameter"} (the default setting), then the default convergence criterion is to terminate at the first iteration $n$ satisfying
 $$
 \left\{\sum_{k=1}^K(p_k^{(n)}-p_k^{(n-1)})^2\right\}^{1/2} < \mathtt{tol},
 $$
-where $p_k^{(n)}$ denotes the $k$th element of the fixed-point value $p$ at the $n$th iteration. For example, to set the convergence criterion to be $\left\{\sum_{k=1}^K(p_k^{(n)}-p_k^{(n-1)})^2\right\}^{1/2} < 10^{-10}$ we specify \texttt{control.run} as
+where $p_k^{(n)}$ denotes the $k$th element of the fixed-point value $p$ at the $n$th iteration.
+For example, to use this convergence criterion with a tolerance of $10^{-10}$, specify the \texttt{control.run} argument as
 <<changetol>>=
 res6 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn,
 		method=c("em", "pem", "squarem"), y=y,
 		control.run=list(tol=1.0e-10))
 res6
 @
-By specifying \texttt{convtype="objfn"}, the default convergence criterion is to terminate at the first iteration $n$ such that
-%\texttt{abs(new-old) < tol}, where \texttt{new} denotes the current value of the objective function and \texttt{old} denotes the previous value of the objective function.
+
+To use a convergence criterion based on the objective function value at each iteration, you can specify \texttt{convtype = "objfn"}. Then the algorithm will terminate at the first iteration $n$ such that
 $$
 \left|L(\mathtt{par}_n) - L(\mathtt{par}_{n-1})\right| < \mathtt{tol}.
 $$
-For example, to set the convergence criterion to be $|L(\mathtt{par}_n) - L(\mathtt{par}_{n-1})| < 10^{-10}$ we specify \texttt{control.run} as follows
+Here we use this convergence criterion with a tolerance of $10^{-10}$:
 <<objfnconv>>=
-res7 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn, method=c("em", "pem", "squarem"), y=y, control.run=list(tol=1.0e-10, convtype="objfn"))
+res7 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn,
+		method=c("em", "pem", "squarem"), y=y,
+		control.run=list(tol=1.0e-10, convtype="objfn"))
 res7
 @
-If the user desires alternate convergence criteria, \texttt{convfn.user} may be specified as a function with inputs \texttt{new} and \texttt{old} that maps to a logical taking the value TRUE if convergence is achieved and the value FALSE if convergence is not achieved. For example, to set the convergence rule to be $\max\{\left|\mathtt{par}_n - \mathtt{par}_{n-1}\right|\} < 10^{-10}$, \texttt{control.run} may be specified as follows
+
+If you would like to use a different convergence criterion than these two options, you can define your own. To do this, define the \texttt{convfn.user} argument as a function with inputs \texttt{new} and \texttt{old} that maps to \texttt{TRUE} if convergence is achieved and maps to \texttt{FALSE} otherwise. For example, for convergence at the first iteration $n$ where $\max\{\left|\mathtt{par}_n - \mathtt{par}_{n-1}\right|\} < 10^{-10}$, you may specify \texttt{control.run} as
 <<userdefconv>>=
 convfn.user <- function(old, new) {
 	max(abs(new-old)) < tol
@@ -261,61 +239,140 @@ res8 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn,
 		control.run=list(tol=1.0e-10, convfn.user = convfn.user))
 res8
 @
-Similarly, to set the convergence rule to be
+Note that here, because we did not specify the \texttt{convtype} argument, \texttt{turboem} uses the default option of parameter-based convergence. In other words, \texttt{turboem} assumes that the \texttt{old} and \texttt{new} arguments of \texttt{convfn.user} refer to the parameter values $\mathtt{par}_{n-1}$ and $\mathtt{par}_n$, respectively.
+
+For another example, if you would like to set the convergence criterion to be
 $$
 \frac{|L(\mathtt{par}_n) - L(\mathtt{par}_{n-1})|}{|L(\mathtt{par}_{n-1})| + 1} < 10^{-8},
 $$
-\texttt{control.run} may be specified as follows
+then the \texttt{convfn.user} argument of \texttt{control.run} may be specified as follows
 <<userdefconv2>>=
-convfn.user <- function(old, new) {
+convfn.user.objfn <- function(old, new) {
 	abs(new - old)/(abs(old) + 1) < tol
 }
-res9 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn, method=c("em", "pem", "squarem"), y=y, control.run=list(tol=1.0e-8, convtype="objfn", convfn.user = convfn.user))
+res9 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn,
+		method=c("em", "pem", "squarem"), y=y,
+		control.run=list(tol=1.0e-8, convtype="objfn",
+		convfn.user = convfn.user.objfn))
 res9
 @
 
-Two types of alternative stopping criteria have been implemented, with the option for the user to define his/her own stopping criterion. If \texttt{stoptype="maxiter"} (the default setting), then the algorithm will terminate if convergence has not been achieved within \texttt{maxiter} iterations of the acceleration scheme.
-If \texttt{stoptype="maxtime"}, then the algorithm will terminate if convergence has not been achieved within \texttt{maxtime} seconds of running the acceleration scheme. Note that the running time of the acceleration scheme is calculated once every iteration. For example, the code
+\subsubsection{Alternative stopping rules}
+Two types of alternative stopping rule have been implemented, as well as an option for a user-defined rule. If \texttt{stoptype = "maxiter"} (the default setting), then the algorithm will terminate if convergence has not been achieved within \texttt{maxiter} iterations of the acceleration scheme.
+If you set \texttt{stoptype = "maxtime"}, then the algorithm will terminate if convergence has not been achieved within \texttt{maxtime} seconds of running the acceleration scheme. Note that the running time of the acceleration scheme is calculated once every iteration. For example, the code
 <<newstop>>=
 res10 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn,
 		method=c("em", "pem", "squarem"), y=y,
-		control.run=list(tol=1.0e-15, stoptype="maxtime", maxtime=10))
+		control.run=list(tol=1.0e-15, stoptype="maxtime",
+		maxtime=10))
 res10
 @
-imposes a strict convergence criterion, but allows the algorithms up to 10 seconds to run.
+imposes a strict tolerance for convergence, but it allows each algorithm up to 10 seconds to run.
 
-If the user desires different alternate stopping criteria than those implemented, \texttt{stopfn.user} may be specified as a function with no inputs that maps to a logical taking the value TRUE which leads to the algorithm being terminated or the value FALSE which leads to the algorithm proceeding as usual. For example, if the user desires the function to stop if either the maximum number of iterations is above 2000 or the maximum running time is above 0.2 seconds, this may be achieved by
+If you would like a different stopping rule than these, you may specify the \texttt{stopfn.user} argument of \texttt{control.run}. To do this, define \texttt{stopfn.user} as a function with no inputs that maps to \texttt{TRUE} when the algorithm should be terminated and maps to \texttt{FALSE} otherwise. For example, if you would like the algorithm to stop when either the number of iterations reaches 2000 or the running time exceeds 0.2 seconds, you can specify
 <<newstop2>>=
 stopfn.user <- function() {
 	iter >= maxiter | elapsed.time >= maxtime
 }
 res11 <- turboem(par=c(0.5, 1, 3), fixptfn=fixptfn, objfn=objfn,
 		method=c("em", "pem", "squarem"), y=y,
-		control.run=list(tol=1.0e-15, stopfn.user=stopfn.user, maxtime=0.2, maxiter=2000))
+		control.run=list(tol=1.0e-15, stopfn.user=stopfn.user,
+		maxtime=0.2, maxiter=2000))
 res11
 @
 
-\subsection{Changing default configurations of the acceleration algorithms}
+\subsection{Changing default configurations of acceleration schemes}
 
-Instead of using the default implementations of each acceleration scheme, we may use alternative specifications. For example, we might like to compare higher-order SQUAREM algorithms (e.g. $K=2$ or $K=3$), consider different values for the $qn$ parameter in the quasi-Newton class of schemes, or use a different version of the dynamic ECME scheme. In the next code chunk, we compare the EM algorithm to the following accelerators: SQUAREM with $K=2$ and $K=3$, Dynamic ECME versions 2 and 2s, quasi-Newton with $qn=1$ and $qn=2$, and Parabolic EM versions ``arithmetic'' as well as the default ``geometric''.
+Each of the general acceleration schemes (SQUAREM, Parabolic EM, Dynamic ECME, and Quasi-Newton) has different variants and choices for various tuning parameters.
+For example, we might wish to compare higher-order SQUAREM algorithms (e.g. $K=2$ or $K=3$), consider different values for the $qn$ parameter in the quasi-Newton class of schemes, or use a different version of the Dynamic ECME scheme.
+It's very easy to change the algorithms' default specifications in \texttt{turboem}.
+
+In the next code chunk, we compare the EM algorithm to the following accelerators: SQUAREM with $K=2$ and $K=3$, Dynamic ECME versions 2 and 2s, quasi-Newton with $qn=1$ and $qn=2$, and Parabolic EM versions ``arithmetic'' as well as the default ``geometric''. To do this, we will utilize the \texttt{control.method} argument.
 <<fit2>>=
-res12 <- turboem(par = c(0.9, 1, 3), fixptfn=fixptfn, objfn=objfn, boundary=boundary, pconstr=pconstr, method=c("em", "squarem", "squarem", "decme", "decme", "qn", "qn", "pem", "pem"), control.method=list(list(), list(K=2), list(K=3), list(version=2), list(version="2s"), list(qn=1), list(qn=2),
-		list(version="arithmetic"), list(version="geometric")), y=y)
+res12 <- turboem(par = c(0.9, 1, 3), fixptfn=fixptfn, objfn=objfn,
+		 boundary=boundary, pconstr=pconstr,
+		 method=c("em", "squarem", "squarem", "decme", "decme",
+		          "qn", "qn", "pem", "pem"),
+		 control.method=list(list(), list(K=2), list(K=3),
+		     list(version=2), list(version="2s"),
+		     list(qn=1), list(qn=2),
+		     list(version="arithmetic"), list(version="geometric")),
+		 y=y)
 res12
 @
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Benchmark study illustration}
-We conduct a small benchmark study to compare EM accelerators for this Poisson mixture example in order to illustrate the benchmark visualization tools implemented in the R package.
 
-For each of $r=1,\ldots,\mathtt{NREP}$ repetitions, we randomly simulate a starting value $\mathtt{par}^{(r)}$. We then apply each of the EM accelerators, beginning at that starting value.
+\subsection{Parallelization of \texttt{turboem}}
+\label{sec:parallel}
+Up until this point, when we ran \texttt{turboem}, each of the accelerations schemes were run sequentially. If you have access to multiple cores within a computer or multiple computers, you may wish to run the accelerators in parallel. Parallelization has been implemented in \texttt{turboEM} through the \href{http://cran.r-project.org/web/packages/foreach/index.html}{\texttt{foreach}} package.
+
+There are two steps to running the algorithms in parallel
+\be\compresslist
+\item Register a {\it parallel backend}.
+\item Set the argument \texttt{parallel = TRUE} in \texttt{turboem}.
+\ee
+
+The parallel backend is the method of parallelization, and which parallel backend you use will depend on your computing environment. Some of the parallel backends available include
+\bi\compresslist
+\item \href{http://cran.r-project.org/web/packages/doMC/index.html}{\texttt{doMC}}:  Based on the \texttt{multicore} package, this backend uses multiple cores on a single machine. It is currently supported by Mac or Unix/Linux operating systems.
+\item \href{http://cran.r-project.org/web/packages/doSNOW/index.html}{\texttt{doSNOW}}: Based on the \texttt{snow} (Simple Network of Workstations) package, this backend allows multiple computers and multiple cores within a computer. It is supported on Mac, Unix/Linux, and Windows machines.
+\item \href{http://cran.r-project.org/web/packages/doMPI/}{\texttt{doMPI}}: Based on the \texttt{Rmpi} package, this method works on clusters of computers with Message Passing Interface (MPI) installed.
+\ei
+In addition to looking at the vignettes for each of the backends, another useful overview for parallel computing with \texttt{foreach} can be found \href{http://trg.apbionet.org/euasiagrid/docs/parallelR.notes.pdf}{here}.
+
+%As an example, here we run \texttt{turboem} using the \texttt{doMC} backend.
+As an example, here we run \texttt{turboem} using the \texttt{doSNOW} backend. First we register the backend:
+<<parallelMCregister>>=
+library(doSNOW)
+cl <- makeSOCKcluster(2)
+registerDoSNOW(cl)
+@
+Now we run \texttt{turboem}.
+<<runMC>>=
+time.parallel <- system.time(res.parallel <-
+	turboem(par=c(0.9, 1, 6), fixptfn=fixptfn, objfn=objfn,
+		method=c("em", "pem", "squarem"), y=y, parallel=TRUE,
+		control.run=list(tol=1.0e-14, stoptype="maxtime",
+		maxtime=10)))
+res.parallel
+time.parallel
+@
+Then for \texttt{doSNOW} we must stop the cluster:
+<<stopSNOW>>=
+stopCluster(cl)
+@
+This computer has $\Sexpr{getDoParWorkers()}$ cores available for use (although here only 3 of the cores were used--one for each acceleration scheme).
+
+We can compare the computation time to running the algorithms sequentially.
+<<seqCompare>>=
+time.sequential <- system.time(res.sequential <-
+	turboem(par=c(0.9, 1, 6), fixptfn=fixptfn, objfn=objfn,
+		method=c("em", "pem", "squarem"), y=y, parallel=FALSE,
+		control.run=list(tol=1.0e-14, stoptype="maxtime",
+		maxtime=10)))
+res.sequential
+time.sequential
+@               
+While each of the individual algorithms took longer to run in parallel due to the overhead of communicating across multiple cores, running the algorithms in parallel led to an overall speed-up of $\Sexpr{round((time.sequential/time.parallel)["elapsed"],2)}$.
+
+For the small example we have considered here, the potential gain in running the schemes in parallel is not that great, since the algorithms do not take very long to run in the first place.
+More complex examples will yield much greater gains. See, for example, the results of a benchmark study in Section (\ref{benchmark}) that demonstrates the value of parallel execution.
+
+Note that if your goal is to compare computation times of various acceleration schemes, you probably should not use the option \texttt{parallel = TRUE} in \texttt{turboem}. If some of the computers/processors over which the work is split are less powerful than others, any difference in computation times could be due to computing power rather than to differences among algorithms. If you'd like to compare the algorithms' performance, \texttt{turboEM} provides several useful tools for conducting benchmark studies. We'll show how they work in the next section.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection*{Control parameters}
-Because each of the acceleration schemes has different versions and control parameters, we create a list containing the control parameters for each scheme we will consider
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Conducting benchmark studies}
+Let's use \texttt{turboEM} to conduct a small benchmark study to compare EM accelerators for our Poisson mixture example.
+
+For each of $r=1,\ldots,\mathtt{NREP}$ repetitions, we will randomly simulate a starting value $\mathtt{par}^{(r)}$. Then we'll apply each of the EM accelerators, beginning at that starting value, and we'll compare results across repetitions using the summary and visualization tools implemented in \texttt{turboEM}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Control parameters}
+Because each of the acceleration schemes has different variants and control parameters, we'll first create a list containing the control parameters for each of the schemes we'll be considering.
 <<control>>=
-method.names <- c("EM", "squaremK1", "squaremK2", "parabolicEM", "dynamicECME", "quasiNewton")
+method.names <- c("EM", "squaremK1", "squaremK2", "parabolicEM",
+		  "dynamicECME", "quasiNewton")
 nmethods <- length(method.names)
 method <- c("em", "squarem", "squarem", "pem", "decme", "qn")
 control.method <- vector("list", nmethods)
@@ -324,101 +381,106 @@ control.method[["EM"]] <- list()
 control.method[["squaremK1"]] <- list(K=1)
 control.method[["squaremK2"]] <- list(K=2)
 control.method[["parabolicEM"]] <- list(version="geometric")
-control.method[["dynamicECME"]] <- list(version="v2")
+control.method[["dynamicECME"]] <- list(version="2s")
 control.method[["quasiNewton"]] <- list(qn=2)
 @
-We also set the control parameters for stopping the algorithm, including the convergence rule and an alternative stopping rule (setting the maximum runtime or maximum number of iterations).
+We'll also set the control parameters for stopping the algorithm, including the convergence criterion and alternative stopping rule (setting the maximum runtime or number of iterations).
 <<runparams>>=
-control.run <- list(tol=1e-7, stoptype="maxtime", maxtime=2, convtype="parameter")
+control.run <- list(tol=1e-7, stoptype="maxtime", maxtime=2,
+		    convtype="parameter")
 @
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection*{Starting values}
-We generate the starting values $\mathtt{par}^{(r)}, r=1,\ldots,\mathtt{NREP}$. To ensure reproducibility, we set the seed.
+\subsection{Starting values}
+Now, let's generate the starting values $\mathtt{par}^{(r)}, r=1,\ldots,\mathtt{NREP}$. If we set the seed prior to generating the starting values, then our benchmark study results can be reproduced.
 <<seed>>=
 NREP <- 100
 library(setRNG)
-test.rng <- list(kind = "Mersenne-Twister", normal.kind = "Inversion", seed = 1)
+test.rng <- list(kind = "Mersenne-Twister",
+		 normal.kind = "Inversion", seed = 1)
 setRNG(test.rng)
 starting.values <- cbind(runif(NREP),runif(NREP,0,4),runif(NREP,0,4))
 head(starting.values, 3)
 @
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection*{Execute simulation}
-Now we run the simulation. For each acceleration scheme, we will keep track of whether the algorithm produced an error, whether the algorithm converged, the total number of iterations until convergence, the execution time, and the final value of the negative log-likelihood function.
+\subsection{Execute benchmark study using simple call} \label{benchmark}
+The \texttt{turboSim} function may be used to run the benchmark study.
 <<run, cache=TRUE>>=
-runtime <- niter <- negloglik <- conv <- fail <- errors <- matrix(NA, NREP, nmethods)
-options(digits=13)
-tot.time1 <- Sys.time()
-for(i in 1:NREP) {
-	p.start <- starting.values[i,]
+simtime <- system.time(
+     results <- turboSim(parmat=starting.values, fixptfn=fixptfn,
+		    objfn=objfn, method=method, boundary=boundary,
+		    pconstr=pconstr, method.names=method.names,
+		    y=y, control.method=control.method,
+		    control.run=control.run)
+		       )
+simtime
+@
+Note that all of the inputs to \texttt{turboSim()} are identical to those in the \texttt{turboem} function, except \texttt{parmat} is a matrix of starting parameter values, where each row corresponds to a single simulation iteration, and \texttt{method.names} is a new argument containing the unique names that can identify the methods being compared.
 
-	res <- try(turboem(par=p.start, fixptfn=fixptfn, objfn=objfn, y=y, method=method, boundary=boundary, pconstr=pconstr, control.method=control.method, control.run=control.run))
-	if(class(res)=="try-error") {
-		fail[i,] <- TRUE
-	} else {
-		runtime[i,] <- res$runtime[,"elapsed"]
-		negloglik[i,] <- res$value.objfn
-		conv[i,] <- res$convergence
-		niter[i,] <- res$itr
-		fail[i,] <- res$fail
-		errors[i,] <- res$errors
-	}
-}
-tot.time2 <- Sys.time()
+There is also the ability to run the benchmark study in parallel over multiple cores or computers, with parallelization implemented using the \texttt{foreach} package that we talked about earlier (Section~\ref{sec:parallel}).
+It is important that all of the algorithms are run on the same processor for a given repetition, in case some of the processors/computers are less powerful than others.
+Therefore, in \texttt{turboSim()} we parallelize across simulation repetitions, rather than across acceleration schemes as in \texttt{turboem()}. As above, let's use the \texttt{doSNOW} parallel backend in order to compare the total computation time of our benchmark study when multiple cores are used.
+Let's see how much faster we can get.
+<<runParallel, cache=TRUE>>=
+cl <- makeSOCKcluster(2)
+simtime.par <- system.time(
+     results.par <- turboSim(parmat=starting.values, fixptfn=fixptfn,
+		    objfn=objfn, method=method, boundary=boundary,
+		    pconstr=pconstr, method.names=method.names,
+		    y=y, control.method=control.method,
+		    control.run=control.run, parallel=TRUE)
+			   )
+simtime.par
+stopCluster(cl)
 @
-The total simulation running time for the $NREP=\Sexpr{NREP}$ iterations is
-<<difftime>>=
-difftime(tot.time2, tot.time1)
-@
+ Here, running the algorithm in parallel over $\Sexpr{getDoParWorkers()}$ cores yielded a speed-up of $\Sexpr{round((simtime/simtime.par)["elapsed"],2)}$.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection*{Results}
-We create an object of class \texttt{turbosim} so that we can summarize and visualize the results of our simulation.
-<<object>>=
-results <- list(method.names=method.names, fail=fail, conv=conv, value.objfn=negloglik, runtime=runtime, method=method, control.method=control.method, control.run=control.run)
-class(results) <- "turbosim"
+\subsection{Results}
+The \texttt{turboSim} function produces an object of class \texttt{turbosim}. Let's now explore the different methods that will help us summarize and visualize the results of our benchmark study.
+<<turboSimPrint>>=
+class(results)
+results
 @
-An object of class \texttt{turbosim} is a list containing at least the following components:
-\bi\compresslist
-\item \texttt{method.names}: A vector of unique identifiers for the algorithms being compared
-  \item \texttt{fail}: A matrix whose $(i,j)-$element is a logical (TRUE/FALSE) for whether the $j$th algorithm at the $i$th simulation iteration failed (produced an error)
-      \item \texttt{conv}: A matrix whose $(i,j)-$element is a logical (TRUE/FALSE) for whether the $j$th algorithm at the $i$th simulation iteration satisfied the convergence criterion before termination
-          \item \texttt{value.objfn}: A matrix whose $(i,j)-$element is the value of the objective function of the $j$th algorithm at the $i$th simulation iteration
-              \item \texttt{runtime}: A matrix whose $(i,j)-$element is the running time of the $j$th algorithm at the $i$th simulation iteration
-\ei
-This list will also contain the components \texttt{method}, \texttt{control.method}, and \texttt{control.run} which were provided as arguments for \texttt{turboem} in the main function call of the simulation.
 
-There are four methods associated with the class \texttt{turbosim}, namely \texttt{summary}, \texttt{boxplot}, \texttt{dataprof}, and \texttt{pairs}. We next illustrate the use of each method for our simulation.
-
-The method \texttt{summary} prints a table of the number of failures across acceleration schemes. We consider three types of failures. The first occurs when the algorithm produces an error message. The second is if the algorithm does not converge before the alternative stopping rule is satisfied (e.g. the maximum number of iterations or maximum prespecified runtime is achieved). The third type of failure occurs if the algorithm claims convergence but the value of the objective function is ``far'' from the best achievable value. To assess this third type of failure, we determine whether the objective function value acheived by the algorithm is close (within a pre-specified value, \texttt{eps}) to the smallest value achieved across all algorithms at that iteration. A summary of the failures across iterations by algorithm is given by the method \texttt{summary}.
+The method \texttt{summary} prints a table of the number of failures across acceleration schemes. Three types of failures are considered.
+\be
+\item An error message is produced by the algorithm.
+\item The algorithm does not converge prior to the alternative stopping rule (maximum number of iterations or running time) being reached.
+\item The convergence criterion has been satisfied but the value of the objective function is ``far'' from the best achievable value.
+\ee
+To assess the third type of failure, we determine whether the objective function value achieved by the algorithm is close (within a pre-specified value, \texttt{eps}) to the smallest value achieved across all algorithms at that iteration.
+Let's look at the types of failures encountered by the algorithms for our study.
 <<table>>=
 summary(results, eps=0.01)
 @
-Alternatively, say we knew somehow that the global minimum of the objective function for this problem were $\mathtt{sol} = 1989.945859883$. In this case the third type of failure would occur of the objective function value acheived by the algorithm is more than \texttt{eps} units greater than \texttt{sol}, and we could summarize the failures using
+Alternatively, say we knew somehow that the global minimum of the objective function for this problem were $\mathtt{sol} = 1989.945859883$. Then we could define the third type of failure as occurring when the objective function value achieved by the algorithm is more than \texttt{eps} units greater than \texttt{sol}, and we could summarize the failures using
 <<table2>>=
 summary(results, eps=0.01, sol=1989.945859883)
 @
 
-The \texttt{boxplot} method shows boxplots of the running time across simulation iterations for each acceleration scheme. We can specify the argument \texttt{whichfail} which identifies which of the simulation iterations were failures. These iterations will be excluded in the boxplots. For example, if we wish to plot the iterations for which the algorithms did not produce an error, we would use the command
+The \texttt{boxplot} method shows boxplots of the running time across simulation iterations for each acceleration scheme.
+To exclude results from the iterations where there were failures, you can use the \texttt{whichfail} argument.
+For example, we can exclude the 21 iterations for which \texttt{squaremK2} did not achieve an objective function close to the best possible value at that iteration.
 \begin{center}
 <<boxplots, fig=TRUE, width=6, height=3, echo=TRUE, eval=TRUE>>=
-boxplot(results, whichfail = results$fail)
+fails <- with(results, fail | !convergence |
+              value.objfn > apply(value.objfn, 1, min) + 0.01)
+boxplot(results, whichfail=fails)
 @
 \end{center}
-The default setting for \texttt{whichfail} in \texttt{boxplot}, as in the other methods for the \texttt{turbosim} class, excludes those simulation iterations for which either the algorithm produced an error or convergence was not achieved.
+The default setting for \texttt{whichfail} in \texttt{boxplot}, as in the other methods for the \texttt{turbosim} class, excludes those simulation iterations for which either the algorithm produced an error or convergence was not achieved (failure types 1 and 2).
 
 The \texttt{dataprof} method shows the estimated distribution function of the time until convergence ($T$) for each acceleration scheme.
-%In this example, none of the three types of failure were achieved by any of the algorithms. However, if some algorithms had yielded failures, we would set $T_{i,j}=\infty$ for those iterations $i$ where algorithm $j$ failed.
 We set $T_{i,j}=\infty$ for those iterations $i$ where algorithm $j$ failed, where failures are specified using the \texttt{whichfail} argument of \texttt{dataprof()}.
 \begin{center}
-<<dataprofile, fig=TRUE, width=5.5, height=5.5, echo=TRUE>>=
-dataprof(results, xlim=c(0, 0.005))
+<<dataprofile, fig=TRUE, width=8.5, height=5.5, echo=TRUE>>=
+dataprof(results)
 @
 \end{center}
 
 Finally, to visualize pairwise comparisons of the running time across algorithms at each iteration, we implement the \texttt{pairs} method which displays a scatterplot matrix of the run times. For this method, as with the other methods, we can specify which of the algorithms will be shown in the results by specifying \texttt{which.methods}.
 \begin{center}
-<<scatterplot, fig=TRUE, width=9, height=8, echo=TRUE>>=
-pairs(results, which.methods=1:4, cex=0.8, whichfail=with(results, fail | !conv | value.objfn > apply(value.objfn, 1, min) + 0.01))
+<<scatterplot, fig=TRUE, width=10, height=8, echo=TRUE>>=
+pairs(results, which.methods=1:4, cex=0.8, whichfail=fails)
 @
 \end{center}
 Rather than ignore points where one of the pair of algorithms failed, we plot those points along the far right or topmost part of the plot.
@@ -426,12 +488,21 @@ For example, for those iterations where \texttt{squaremK2} failed, we set the ru
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Conclusion}
+The \texttt{turboEM} package provides a unified implementation of acceleration schemes, which can be used {\it off-the-shelf} for any EM or MM problem. 
+Here we have explored a small example to give you an overview of the different features of \texttt{turboEM}. 
+You can specify one of the implemented convergence criteria and alternative stopping rules or you can define your own. You can run the algorithms in parallel to speed up computation time, and the parallel implementation works over a wide range of computing environments with little modification. 
+Several methods are provided to allow output to be examined, displayed and summarized. In addition, you can systematically compare the performance of the acceleration schemes by conducting a benchmark study, which can also be run in parallel. 
+Finally, results from benchmark studies can be explored and presented through a suite of visualization methods. We hope that this package will enable researchers and applied scientists to easily use state-of-the-art EM accelerators and to critically evaluate the relative performances of the approaches across a wide range of optimization problems.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{thebibliography}{1}
-%bibliographystyle{chicago}
-\bibitem{VaradhanRoland2008} Varadhan and Roland (2008). Simple and Globally Convergent Methods for Accelerating the Convergence of Any EM Algorithm. Scand J Stat. 35 (2) 335-3531
-\bibitem{BerlinetRoland2009} Berlinet and Roland (2009). Parabolic acceleration of the EM algorithm. Stat Comput. 19 (1) 35-47
-\bibitem{Zhou2011} Zhou et al (2011). A quasi-Newton acceleration for high-dimensional optimization algorithms. Stat Comput. 21 (2) 261-273
-\bibitem{HeLiu2010} He and Liu (2010) The Dynamic ECME Algorithm. Technical Report. arXiv:1004.0524v1
+\bibitem{VaradhanRoland2008} Varadhan R and Roland C (2008). Simple and Globally Convergent Methods for Accelerating the Convergence of Any EM Algorithm. {\it Scand J Stat.} 35 (2) 335-3531
+\bibitem{BerlinetRoland2009} Berlinet A and Roland C (2009). Parabolic acceleration of the EM algorithm. {\it Stat Comput.} 19 (1) 35-47
+\bibitem{Zhou2011} Zhou H, Alexander D, and Lange K (2011). A quasi-Newton acceleration for high-dimensional optimization algorithms. {\it Stat Comput.} 21 (2) 261-273
+\bibitem{HeLiu2010} He Y and Liu C (2010) The Dynamic ECME Algorithm. Technical Report. arXiv:1004.0524v1
+  \bibitem{Hasselblad1969} Hasselblad V (1969). Estimation of finite mixutres of distributions from the exponential family. \textit{Journal of the American Statistical Association}. 64, 1459--1471.
 \end{thebibliography}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

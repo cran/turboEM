@@ -1,3 +1,10 @@
-Changes in turboEM version 2011.9-1 
+Changes in turboEM version 2012.2-1 
 
    o	first release:  December 2011
+
+   o 	second release: February 2012 
+		- allow for parallelization of turboem() using the foreach package
+		- added turboSim function to conduct benchmark studies that outputs object of class "turbosim"
+		- added option to allow pconstr function to be ignored, even if it is included in turboem() or turboSim() function calls (added use.pconstr as argument to control.method)
+		- added check to produce error if "version" of control.method is not specified correctly for decme, pem
+		- modified the package vignette to reflect the above changes

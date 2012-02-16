@@ -55,7 +55,8 @@ error.turbo <- function(x, ...) {
 		print("There were no errors")
 	} else {
 		for(i in which.error) {
-			cat(paste("method ", i, " (", x$method[i], "):", sep=""), x$errors[i], "\n")
+			##cat(paste("method ", i, " (", x$method[i], "):", sep=""), "\n", x$errors[i], "\n")
+			cat(paste("method ", i, " (", x$method[i], "):", sep=""), x$errors[i])
 		}
 	}
 }
@@ -75,7 +76,7 @@ plot.turbo <- function(x, which.methods = seq_along(x$method), method.names = x$
 	trace <- x$trace.objfval[which.methods]
 	select <- which((!x$fail)[which.methods])
 
-	times <- sapply(select, function(u) c(trace[[u]]$time.before.iter["elapsed"], trace[[u]]$time.before.iter["elapsed"] + 1:x$itr[u]*trace[[u]]$time.per.iter["elapsed"]))
+	times <- lapply(select, function(u) c(trace[[u]]$time.before.iter["elapsed"], trace[[u]]$time.before.iter["elapsed"] + 1:x$itr[u]*trace[[u]]$time.per.iter["elapsed"]))
 
 	max.time <- max(sapply(select, function(u) max(times[[u]])))
 	lower <- max(sapply(select, function(u) min(times[[u]])))

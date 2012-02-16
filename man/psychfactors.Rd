@@ -1,0 +1,2 @@
+\name{psychfactors}       \docType{data}       \alias{psychfactors}       \title{Psychiatric Test Correlations}       \description{         Intercorrelations of outcomes from a set of psychiatric tests for 148 children.       }       \usage{data(psychfactors)}       \format{A 10-by-10 correlation matrix.}       \source{Maxwell AE (1961). Recent Trends in Factor Analysis. \emph{Journal of the Royal Statistical Society. Series A (General)}. 124 (1)  49-59.}
+       \keyword{datasets}

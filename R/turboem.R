@@ -1,4 +1,4 @@
-turboem <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "decme", "qn"), boundary, pconstr = NULL, project = NULL, ..., control.method = replicate(length(method),list()), control.run = list()) {
+turboem <- function(par, fixptfn, objfn = NULL, method = c("em", "squarem", "pem", "decme", "qn"), boundary = NULL, pconstr = NULL, project = NULL, parallel = FALSE, ..., control.method = replicate(length(method),list()), control.run = list()) {
 	# method = vector of one or more methods
 	# control.method = list containing control parameters if length(method)==1
 	#				 = list(list1, list2, ...) when method = c(method1, method2, ...), where list1 is the list of control parameters for method1, list2 is the list of control parameters for method2, ...
@@ -17,7 +17,9 @@ turboem <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "dec
 	for(j in seq_along(method))
 		if(class(control.method[[j]]) != "list")
 			stop("each component of 'control.method' must be of class 'list'")
-	
+			
+	if(missing(objfn)) objfn <- NULL
+			
 	control.run.default <- list(convtype = "parameter", tol = 1e-07, stoptype = "maxiter", maxiter = 1500, maxtime = 60, convfn.user = NULL, stopfn.user = NULL, trace = FALSE, keep.objfval = FALSE)
 	namc <- names(control.run)
 	if(!all(namc %in% names(control.run.default))) {stop("unknown names in control.run: ", namc[!(namc %in% names(control.run.default))])}
@@ -35,16 +37,19 @@ turboem <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "dec
 	} else {
 		trace.objfval <- vector("list", length(method))
 	}
+	# Modified (JFB 30Jan2012)
+	if(parallel) {
+		resall <- foreach(j = seq_along(method), .packages="turboEM", .errorhandling = "pass") %dopar% accelerate(par=par, fixptfn=fixptfn, objfn=objfn, boundary=boundary, method=method[j], pconstr=pconstr, project=project, ..., control=modifyList(control.run, control.method[[j]]))
+	} else {
+		resall <- foreach(j = seq_along(method), .packages="turboEM", .errorhandling = "pass") %do% accelerate(par=par, fixptfn=fixptfn, objfn=objfn, boundary=boundary, method=method[j], pconstr=pconstr, project=project, ..., control=modifyList(control.run, control.method[[j]]))		
+	}
 	for(j in seq_along(method)) {
-		if(length(method)==1) {
-			res <- accelerate(par=par, fixptfn=fixptfn, objfn=objfn, boundary=boundary, method=method[j], pconstr=pconstr, project=project, ..., control=modifyList(control.run, control.method[[j]]))
-		} else {
-			if(control.run$trace) cat(paste("Method ", j, ":  \n", sep=""))
-			res <- try(accelerate(par=par, fixptfn=fixptfn, objfn=objfn, boundary=boundary, method=method[j], pconstr=pconstr, project=project, ..., control=modifyList(control.run, control.method[[j]])), silent=TRUE)
-		}
-		if(class(res)=="try-error") {
+		if(control.run$trace) cat(paste("Method ", j, ":  \n", sep=""))
+		res <- resall[[j]]
+		if(!"turboem" %in% class(res)) {
 			fail[j] <- TRUE
-			errors[j] <- res[1]
+			##errors[j] <- res[[1]]
+			errors[j] <- as.character(res)
 			pars[j,] <- NA
 			itr[j] <- NA
 			fpeval[j] <- NA
@@ -71,7 +76,7 @@ turboem <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "dec
 	}
 	lst <- list(...)
 	arg.names <- names(lst)
-	if(missing(objfn)) {
+	if(is.null(objfn)) {
 		obfjn.return <- NULL
 	} else {
 		obfjn.return <- objfn
@@ -102,11 +107,15 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 	# control = list of general control parameters for convergence and stopping criteria, as well as algorithm-specific control parameters
 	
 	env <- new.env()
-	control.default <- list(convtype = "parameter", tol = 1e-07, stoptype = "maxiter", maxiter = 1500, maxtime = 60, convfn.user = NULL, stopfn.user = NULL, trace = FALSE, keep.objfval = FALSE)
+	control.default <- list(convtype = "parameter", tol = 1e-07, stoptype = "maxiter", maxiter = 1500, maxtime = 60, convfn.user = NULL, stopfn.user = NULL, trace = FALSE, keep.objfval = FALSE, use.pconstr = TRUE)
+	## added use.pconstr (8Feb2012 JFB): this allows user to specify that pconstr not be used even if it is included (useful for benchmark studies where you want to compare including it to not including it)
 	
 	## allow partial matching of method and all lower case
 	method <- tolower(method)
 	method <- match.arg(method)
+	
+	## if par is a matrix, convert to a vector
+	if(is.matrix(par)) par <- as.vector(par)	
 	
 	## control parameters for each algorithm
 	if(method=="em") {
@@ -114,11 +123,14 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 	} else if(method=="pem") {
 		control.parabolicEM <- list(l=10, h=0.1, a=1.5, version="geometric")
 		ctrl <- c(control.default, control.parabolicEM)
+		if(is.null(objfn)) {stop("objfn required for method = 'pem' \n")}
 	} else if(method=="decme") {
-		if(missing(boundary)) {stop("decme requires boundary function \n")}
+		if(is.null(boundary)) {stop("decme requires boundary function \n")}
+		if(is.null(objfn)) {stop("objfn required for method = 'decme' \n")}
 		control.dynamicECME <- list(version = "2s", tol_op = 0.01)
 		ctrl <- c(control.default, control.dynamicECME)
 	} else if(method=='qn'){
+		if(is.null(objfn)) {stop("objfn required for method = 'qn' \n")}
 		if(is.null(pconstr)) {
 			warning("If the parameter space is constrained, then pconstr should be provided for method='qn'")
 		}
@@ -146,8 +158,11 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 	trace.objfval <- NULL
 	
 	## user-defined constraints on parameters
-	if(is.null(pconstr))
+	# modified 8Feb2012 (JFB)
+	if(is.null(pconstr) | !ctrl$use.pconstr) {
+	# if(is.null(pconstr)) {
 		pconstr <- function(par) TRUE
+	}
 	
 	## default projection function: no projection is executed 
 	if(is.null(project))
@@ -157,9 +172,19 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 	## convergence criterion
 	if(is.null(convfn.user)) {
 		if(convtype=="parameter") {
+			# Modified (JFB 30Jan2012)
 			convfn <- function(old, new) {sqrt(crossprod(new-old)) < tol}
+			# convfn <- function(old, new) {
+				# diff <- as.numeric(sqrt(crossprod(new-old)))
+				# isTRUE(all.equal(diff, tol, tolerance = tol))
+			# }
 		} else if(convtype=="objfn") {
+			# Modified (JFB 30Jan2012)
 			convfn <- function(old, new) {abs(new-old) < tol}
+			# convfn <- function(old, new) {
+				# diff <- max(abs(new-old))
+				# isTRUE(all.equal(diff, tol, tolerance = tol))
+			# }
 		}
 	}
 	if(!is.null(convfn.user)) {
@@ -168,7 +193,7 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 	if(!convtype %in% c('parameter', 'objfn')) {
 		stop("\n convtype must be one of c('parameter', 'objfn') \n")
 	}
-	if(convtype=="objfn" & missing(objfn)) {
+	if(convtype=="objfn" & is.null(objfn)) {
 		stop("\n objfn required if convtype='objfn' \n")
 	}
 	environment(convfn) <- env
@@ -221,8 +246,8 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 		if(ctrl$version=="2s") {
 			objfval.old <- objfn(par, ...)
 			objfeval <- objfeval + 1
-		} else objfval.old <- Inf
-		input <- list(par=par, objfval.old=objfval.old, objfval=Inf)
+		} else objfval.old <- 1e100
+		input <- list(par=par, objfval.old=objfval.old, objfval=1e100)
 		ctrl.alg <- c(ctrl[c("version", "tol_op")], dm=length(par))
 		mainfun <- bodyDECME
 		rm(par)
@@ -254,12 +279,12 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 			ctrl$version <- "rre"
 		if (ctrl$K == 1 & !(ctrl$version %in% c(1, 2, 3))) 
 			ctrl$version <- 3
-		if (!missing(objfn)) {
+		if (!is.null(objfn)) {
 			if (ctrl$K == 1) { 
 				mainfun <- bodySquarem1
 				if (trace) 
 					cat("Squarem-1 \n")
-				if (missing(objfn)) 
+				if (is.null(objfn)) 
 					stop("\n squarem2 should be used if objective function is not available \n")
 				input <- list(par=par, objfval=objfn(par, ...), step.max=ctrl$step.max0, step.min=ctrl$step.min0)
 				objfeval <- objfeval + 1
@@ -269,7 +294,7 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 				mainfun <- bodyCyclem1
 				if (trace) 
 					cat("Cyclem-1 \n")
-				if (missing(objfn)) 
+				if (is.null(objfn)) 
 					stop("\n cyclem2 should be used if objective function is not available \n")
 				if (ctrl$K > length(par)) {
 					stop("K is too large.  Decrease it.  \n")
@@ -314,7 +339,7 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 	par <- input$par
 	if(is.null(input$objfval)) {
 		if(convtype=="objfn" | keep.objfval) {
-			if(missing(objfn)) stop("objfn must be supplied if keep.objfval=TRUE")
+			if(is.null(objfn)) stop("objfn must be supplied if keep.objfval=TRUE")
 			objfval.old <- objfn(input$par, ...)
 			objfeval <- objfeval + 1
 		}
@@ -386,10 +411,10 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 			STOP <- TRUE
 		}
 	}
-	if(is.null(objfval.new) & !missing(objfn)) {
+	if(is.null(objfval.new) & !is.null(objfn)) {
 		objfval.new <- objfn(p.new, ...)
 		objfeval <- objfeval + 1
-	} else if(is.null(objfval.new) & missing(objfn)) {
+	} else if(is.null(objfval.new) & is.null(objfn)) {
 		objfval.new <- NA
 	}
 	
@@ -455,7 +480,7 @@ search <- function(pnew, dr, dm, boundary, objfn, ...) {
 	
 	return(list(res=c(alpha, lltheta, theta), dr=dr, objfiter=objfiter))
 }
-optimize.2d.app=function(pnew, pold, par, llnew, llold, llp, dm, boundary, objfn, ...){
+optimize.2d.app=function(pnew, pold, par, llnew, llold, llp, dm, boundary, objfn, pconstr, ...){
 	objfiter <- 0
 	theta <- matrix(0, 7, dm + 2)
 	dr1 <- pnew - par
@@ -465,15 +490,15 @@ optimize.2d.app=function(pnew, pold, par, llnew, llold, llp, dm, boundary, objfn
 	theta[1,2:(dm+2)] <- c(llp, par)
 	theta[2,2:(dm+2)] <- c(llold, pold)
 	theta[3,2:(dm+2)] <- c(llnew, pnew)
-	temp <- search(pnew, dr1, dm, boundary, objfn, ...)
+	temp <- search(pnew=pnew, dr=dr1, dm=dm, boundary=boundary, objfn=objfn, ...)
 	objfiter <- objfiter + temp$objfiter
 	theta[4,] <- temp$res
 	dr1 <- temp$dr
-	temp <- search(pnew, dr2, dm, boundary, objfn, ...)
+	temp <- search(pnew=pnew, dr=dr2, dm=dm, boundary=boundary, objfn=objfn, ...)
 	objfiter <- objfiter + temp$objfiter
 	theta[5,] <- temp$res
 	dr2 <- temp$dr
-	temp <- search(pnew, dr3, dm, boundary, objfn, ...)
+	temp <- search(pnew=pnew, dr=dr3, dm=dm, boundary=boundary, objfn=objfn, ...)
 	theta[6,] <- temp$res
 	objfiter <- objfiter + temp$objfiter
 	
@@ -488,15 +513,18 @@ optimize.2d.app=function(pnew, pold, par, llnew, llold, llp, dm, boundary, objfn
 		#cat("x=", x,"\n")
 		if(is.finite(prod(x))) {
 			dr4 <- x[1]*dr1+x[2]*dr2
-			temp <- search(pnew, dr4, dm, boundary, objfn, ...)
+			temp <- search(pnew=pnew, dr=dr4, dm=dm, boundary=boundary, objfn=objfn, ...)
 			theta[7,] <- temp$res
 			objfiter <- objfiter + temp$objfiter
 			sel <- which.max(theta[3:7,2])+2
 		} else sel <- which.max(theta[3:6,2])+2
 	} else sel <- which.max(theta[3:6,2])+2
 	
-	pnew <- theta[sel,3:(dm+2)]
-	llnew <- theta[sel,2]
+	## Added if(pconstr...), JFB 13Feb2012
+	if(pconstr(theta[sel,3:(dm+2)])) {
+		pnew <- theta[sel,3:(dm+2)]
+		llnew <- theta[sel,2]
+	}
 	#cat("llk=", theta[,2], "\n")
 	#cat("sel=", sel, "\n")
 	return(list(pnew=pnew, llnew=llnew, objfiter=objfiter))
@@ -527,14 +555,17 @@ bodyParaEM <- function(input.paraEM, ctrl, fixptfn, objfn, pconstr, project, ite
 	} else if(ctrl$version=="arithmetic") {
 		i <- 1
 		t <- 1 + i*ctrl$h
+	} else { ## added 9Feb2012 (JFB)
+		stop("for pem, version must be one of c('geometric','arithmetic')")	
 	}
 	pnew <- (1-t)^2*p0 + 2*t*(1-t)*p1 + t^2*p2
-	if(!pconstr(pnew))
+	no.pconstr <- !pconstr(pnew)
+	if(no.pconstr)
 		pnew <- project(pnew)
 	Lnew <- try(-objfn(pnew, ...), silent=TRUE)
 	objfeval <- objfeval + 1
 	## Hui added !pconstr(pnew) here
-	if(class(Lnew)=="try-error" | is.nan(Lnew) | !pconstr(pnew) | Lnew <= L2) { 
+	if(class(Lnew)=="try-error" | is.nan(Lnew) | no.pconstr | Lnew <= L2) { 
 		p0 <- p2
 		p1 <- fixptfn(p0, ...)
 		p2 <- fixptfn(p1, ...)
@@ -546,12 +577,13 @@ bodyParaEM <- function(input.paraEM, ctrl, fixptfn, objfn, pconstr, project, ite
 			i <- i+1
 			t <- ifelse(ctrl$version=="arithmetic", 1 + i*ctrl$h, 1 + ctrl$a^i*ctrl$h)
 			pnew <- (1-t)^2*p0 + 2*t*(1-t)*p1 + t^2*p2
-			if(!pconstr(pnew))
+			no.pconstr <- !pconstr(pnew)
+			if(no.pconstr)
 			   pnew <- project(pnew)
 			Lnew <- try(-objfn(pnew, ...), silent=TRUE)
 			objfeval <- objfeval + 1
-			## Hui added !pconstr(pnew) here
-			if(class(Lnew)=="try-error" | !pconstr(pnew) | is.nan(Lnew) | any(is.nan(unlist(pnew)))) {
+			## Hui added !pconstr(pnew) [no.pconstr] here
+			if(class(Lnew)=="try-error" | no.pconstr | is.nan(Lnew) | any(is.nan(unlist(pnew)))) {
 				pnew <- pold
 				Lnew <- L2
 			}
@@ -577,7 +609,7 @@ bodyDECME <- function(input.DECME, ctrl, fixptfn, objfn, pconstr, project, iter,
 	llnew <- try(-objfn(pnew, ...), silent=T)
 	objfeval <- objfeval + 1
 	
-	if(ctrl$version==2){
+	if(ctrl$version %in% c(2,"v1")){ ## added "v1" 9Feb2012 (JFB)
 		if(round((iter-1)/ctrl$dm)==(iter-1)/ctrl$dm) { ## restart
 			res <- line.search(pnew, pnew, par, llnew, ctrl$tol_op, boundary, objfn, ...) 	# restart
 			objfeval <- objfeval + res$optimiter
@@ -591,7 +623,7 @@ bodyDECME <- function(input.DECME, ctrl, fixptfn, objfn, pconstr, project, iter,
 		llnew <- res$llnew
 	} else if(ctrl$version=="2s") {
 		if(iter > 1) {
-			res <- optimize.2d.app(pnew, pold, par, llnew, llold, llp, dm=ctrl$dm, boundary, objfn, ...)
+			res <- optimize.2d.app(pnew, pold, par, llnew, llold, llp, dm=ctrl$dm, boundary, objfn, pconstr, ...)
 			objfeval <- objfeval + res$objfiter
 			pnew <- res$pnew
 			llnew <- res$llnew
@@ -610,6 +642,8 @@ bodyDECME <- function(input.DECME, ctrl, fixptfn, objfn, pconstr, project, iter,
 			pnew <- res$pnew
 			llnew <- res$llnew
 		}
+	} else { ## added 9Feb2012 (JFB)
+		stop("For decme, version must be one of c('2','2s','v2','v3')")	
 	}
 	
 	return(list(output=list(pold=par, par=pnew, objfval.old=-llp, objfval=-llnew), fpeval=fpeval, objfeval=objfeval))
@@ -693,7 +727,9 @@ bodySquarem1 <- function(input.squarem1, ctrl, fixptfn, objfn, pconstr, project,
 	p.new <- p + 2 * alpha * q1 + alpha^2 * (q2 - q1)
 	if(!pconstr(p.new))
 		p.new <- project(p.new)
-	if (abs(alpha - 1) > 0.01) {
+	# Modified (JFB 30Jan2012)
+	# if (abs(alpha - 1) > 0.01) {
+	if (isTRUE(abs(alpha - 1) > 0.01) ) {
 		p.new <- try(fixptfn(p.new, ...), silent = TRUE)
 		fpeval <- fpeval + 1
 	}
@@ -701,7 +737,9 @@ bodySquarem1 <- function(input.squarem1, ctrl, fixptfn, objfn, pconstr, project,
 		p.new <- p2
 		lnew <- try(objfn(p2, ...), silent = TRUE)
 		objfeval <- objfeval + 1
-		if (alpha == step.max) 
+		# Modified (JFB 30Jan2012)
+		# if (alpha == step.max) 
+		if (isTRUE(all.equal(alpha, step.max)))
 			step.max <- max(ctrl$step.max0, step.max/ctrl$mstep)
 		alpha <- 1
 		extrap <- FALSE
@@ -716,15 +754,21 @@ bodySquarem1 <- function(input.squarem1, ctrl, fixptfn, objfn, pconstr, project,
 			p.new <- p2
 			lnew <- try(objfn(p2, ...), silent = TRUE)
 			objfeval <- objfeval + 1
-			if (alpha == step.max) 
+			# Modified (JFB 30Jan2012)
+			# if (alpha == step.max) 
+			if (isTRUE(all.equal(alpha, step.max)))
 				step.max <- max(ctrl$step.max0, step.max/ctrl$mstep)
 			alpha <- 1
 			extrap <- FALSE
 		}
 	}
-	if (alpha == step.max) 
+	# Modified (JFB 30Jan2012)
+	# if (alpha == step.max) 
+	if (isTRUE(all.equal(alpha, step.max)))
 		step.max <- ctrl$mstep * step.max
-	if (step.min < 0 & alpha == step.min) 
+	# Modified (JFB 30Jan2012)
+	# if (step.min < 0 & alpha == step.min) 
+	if (step.min < 0 & isTRUE(all.equal(alpha, step.min)))
 		step.min <- ctrl$mstep * step.min
 	p <- p.new
 	if (!is.nan(lnew)) 
@@ -762,12 +806,16 @@ bodySquarem2 <- function(input.squarem2, ctrl, fixptfn, objfn, pconstr, project,
 	p.new <- par + 2 * alpha * q1 + alpha^2 * (q2 - q1)
 	if(!pconstr(p.new))
 		p.new <- project(p.new)
-	if (abs(alpha - 1) > 0.01) {
+	# Modified (JFB 30Jan2012)
+	# if (abs(alpha - 1) > 0.01) {
+	if (isTRUE(abs(alpha - 1) > 0.01) ) {	
 		ptmp <- try(fixptfn(p.new, ...), silent = TRUE)
 		fpeval <- fpeval + 1
 		if (class(ptmp) == "try-error" | any(is.nan(unlist(ptmp))) | !pconstr(ptmp)) {
 			p.new <- p2
-			if (alpha == step.max) 
+			# Modified (JFB 30Jan2012)
+			# if (alpha == step.max) 
+			if (isTRUE(all.equal(alpha, step.max)))
 				step.max <- max(ctrl$step.max0, step.max/ctrl$mstep)
 			alpha <- 1
 			extrap <- FALSE
@@ -780,16 +828,22 @@ bodySquarem2 <- function(input.squarem2, ctrl, fixptfn, objfn, pconstr, project,
 						ptmp
 					else p2
 			if (res > kres) {
-				if (alpha == step.max) 
+				# Modified (JFB 30Jan2012)
+				# if (alpha == step.max) 
+				if (isTRUE(all.equal(alpha, step.max)))
 					step.max <- max(ctrl$step.max0, step.max/ctrl$mstep)
 				alpha <- 1
 				extrap <- FALSE
 			}
 		}
 	}
-	if (alpha == step.max) 
+	# Modified (JFB 30Jan2012)
+	# if (alpha == step.max) 
+	if (isTRUE(all.equal(alpha, step.max)))
 		step.max <- ctrl$mstep * step.max
-	if (step.min < 0 & alpha == step.min) 
+	# Modified (JFB 30Jan2012)
+	# if (step.min < 0 & alpha == step.min) 
+	if (step.min < 0 & alpha == step.min)
 		step.min <- ctrl$mstep * step.min
 	par <- p.new
 	extrap <- TRUE
@@ -817,7 +871,9 @@ bodySquarem2 <- function(input.squarem2, ctrl, fixptfn, objfn, pconstr, project,
 	p.new <- par + 2 * alpha * q1 + alpha^2 * (q2 - q1)
 	if(!pconstr(p.new))
 		p.new <- project(p.new)
-	if (abs(alpha - 1) > 0.01) {
+	# Modified (JFB 30Jan2012)
+	# if (abs(alpha - 1) > 0.01) {
+	if (isTRUE(abs(alpha - 1) > 0.01) ) {
 		ptmp <- try(fixptfn(p.new, ...), silent = TRUE)
 		fpeval <- fpeval + 1
 		if (class(ptmp) == "try-error" | any(is.nan(unlist(ptmp))) | !pconstr(ptmp)) {
@@ -876,7 +932,9 @@ bodyCyclem1 <- function(input.cyclem1, ctrl, fixptfn, objfn, pconstr, project, i
 			extrap <- FALSE
 		}
 		else {
-			if (abs(sum(coef)) < 1e-07) 
+			# Modified (JFB 30Jan2012)
+			# if (abs(sum(coef)) < 1e-07) 
+			if (isTRUE(all.equal(abs(sum(coef)), 1.e-07, tolerance =  1.e-07)))
 				extrap <- FALSE
 			coef <- coef/sum(coef)
 		}
@@ -889,7 +947,9 @@ bodyCyclem1 <- function(input.cyclem1, ctrl, fixptfn, objfn, pconstr, project, i
 		}
 		else {
 			coef <- c(coef, 1)
-			if (abs(sum(coef)) < 1e-07) 
+			# Modified (JFB 30Jan2012)
+			# if (abs(sum(coef)) < 1e-07) 
+			if (isTRUE(all.equal(abs(sum(coef)), 1.e-07, tolerance =  1.e-07)))
 				extrap <- FALSE
 			coef <- coef/sum(coef)
 		}
@@ -975,7 +1035,9 @@ bodyCyclem2 <- function(input.cyclem2, ctrl, fixptfn, objfn, pconstr, project, i
 			extrap <- FALSE
 		}
 		else {
-			if (abs(sum(coef)) < 1e-07) 
+			# Modified (JFB 30Jan2012)
+			# if (abs(sum(coef)) < 1e-07) 
+			if (isTRUE(all.equal(abs(sum(coef)), 1.e-07, tolerance = 1.e-07)))
 				extrap <- FALSE
 			coef <- coef/sum(coef)
 		}
@@ -988,7 +1050,9 @@ bodyCyclem2 <- function(input.cyclem2, ctrl, fixptfn, objfn, pconstr, project, i
 		}
 		else {
 			coef <- c(coef, 1)
-			if (abs(sum(coef)) < 1e-07) 
+			# Modified (JFB 30Jan2012)
+			# if (abs(sum(coef)) < 1e-07) 
+			if (isTRUE(all.equal(abs(sum(coef)), 1.e-07, tolerance = 1.e-07)))
 				extrap <- FALSE
 			coef <- coef/sum(coef)
 		}

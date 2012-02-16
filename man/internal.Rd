@@ -12,6 +12,7 @@
 \alias{bodySquarem2}
 \alias{bodyCyclem1}
 \alias{bodyCyclem2}
+\alias{combine}
 
 \title{Internal functions for turboEM}
 \description{turboEM functions not to be called by users.} 

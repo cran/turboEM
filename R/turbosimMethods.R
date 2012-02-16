@@ -1,3 +1,4 @@
+## typically arise as output from "benchmark" function
 ## objects of class "turbosim" consist of a named list with the following components:
 	## method.names = vector of unique identifiers for the methods being compared
 	## fail = matrix of logical values where (i,j)-entry indicates whether algorithm j of simulation iteration i failed (produced an error)
@@ -7,6 +8,21 @@
 	## method = vector of algoritm names = c("em", "squarem", "pem", "decme", "qn")
 	## control.method = list of control parameters used in the turboem function of the simulation
 	## control.run = list of run parameters used in the turboem function of the simulation
+
+########################################
+########################################
+## print ###############################
+########################################
+########################################
+
+print.turbosim <- function(x, ...) {
+	cat("\nBenchmark study over", nrow(x$fail), "repetitions.\n")
+	cat("\nMethods:\n")
+	for(i in seq_along(x$method.names)) {
+		cat(i, ". ", x$method.names[i], "\n", sep="")
+	}
+	cat("\nFunctions to summarize and visualize results:\n    summary(), boxplot(), dataprof(), pairs()\n")
+}
 
 ########################################
 ########################################
@@ -25,25 +41,31 @@ summary.turbosim <- function(object, which.methods = seq_along(object$method), m
 	if(length(method.names) != length(which.methods)) {
 		stop("length of method.names must be equal to length of which.methods")
 	}
-
-	if(!is.null(sol)) {
-		fail3 <- value.objfn > eps + sol
-	} else if(is.null(sol)) {
-		fail3 <- value.objfn > eps + replicate(nmethods, abs(apply(value.objfn, 1, min, na.rm=TRUE)))
+	
+	if(nmethods > 1) {
+	
+		if(!is.null(sol)) {
+			fail3 <- value.objfn > eps + sol
+		} else if(is.null(sol)) {
+			fail3 <- value.objfn > eps + replicate(nmethods, abs(apply(value.objfn, 1, min, na.rm=TRUE)))
+		}
+		tab <- rbind(colSums(fail), colSums(!conv, na.rm=TRUE), colSums(fail3, na.rm=TRUE))
+		
+		if(x$control.run$stoptype=="maxiter") {
+			name2 <- paste("Exceeded", x$control.run$maxiter, "iter. ")
+		} else if(x$control.run$stoptype=="maxtime") {
+			name2 <- paste("Exceeded", round(x$control.run$maxtime/60,2), "min. ")
+		} else if(x$control.run$stoptype=="user") {
+			name2 <- paste("Did not converge")
+		} 
+		
+		rownames(tab) <- c("Algorithm failed ", name2, paste("objfn > min(objfn) +", eps, ""))
+		colnames(tab) <- method.names
+		return(t(tab))
+	} else {
+		df.method <- data.frame(fail=fail, convergence=conv, value.objfn=value.objfn, itr=x$itr[,which.methods], fpeval=x$fpeval[,which.methods], objfeval=x$objfeval[,which.methods], had.error=!x$errors[,which.methods] %in% c("",NA))
+		return(summary(df.method))
 	}
-	tab <- rbind(colSums(fail), colSums(!conv, na.rm=TRUE), colSums(fail3, na.rm=TRUE))
-	
-	if(x$control.run$stoptype=="maxiter") {
-		name2 <- paste("Exceeded", x$control.run$maxiter, "iter. ")
-	} else if(x$control.run$stoptype=="maxtime") {
-		name2 <- paste("Exceeded", round(x$control.run$maxtime/60,2), "min. ")
-	} else if(x$control.run$stoptype=="user") {
-		name2 <- paste("Did not converge")
-	} 
-	
-	rownames(tab) <- c("Algorithm failed ", name2, paste("objfn > min(objfn) +", eps, ""))
-	colnames(tab) <- method.names
-	t(tab)
 }	
 
 ########################################
@@ -61,7 +83,10 @@ boxplot.turbosim <- function(x, which.methods = seq_along(x$method), method.name
 	}
 
 	runtime <- x$runtime[,which.methods]
-	fail <- x$fail[,which.methods]
+	## Modified (JFB Feb2012)
+	fail <- whichfail
+	runtime <- ifelse(fail, NA, runtime)
+	# fail <- x$fail[,which.methods]
 	opar <- par(mar=c(4.1, 13.1, 2.1, 2.1))
 	on.exit(par(opar))
 	if(xunit=="sec") {
@@ -126,12 +151,16 @@ dataprof.turbosim <- function(x, which.methods = seq_along(x$method), method.nam
 		xlim <- range(runtime, na.rm=TRUE)/60
 	}
 	titl <- "Distribution of T = 'Time to Convergence' \ngiven no failures"
+	##opar <- par(mar=c(5.1, 4.1, 4.1, 12.1))
+	opar <- par(mar=c(5.1, 4.1, 4.1, 2.1 + max(nchar(method.names))-1))
+	on.exit(par(opar))
 	plot(freq[,1], type="n", xlim=xlim, ylim=range(freq/nsim), xlab="Time t (minutes)", ylab="Proportion of iterations with T < t", main=titl, ...)
 	for(k in 1:nmethod) {
 		lines(xs[,k]/60, freq[,k]/nsim, col=col[k], lty=lty[k], lwd=2)
 	}
 	if(x$control.run$stoptype=="maxtime") segments(4/5*x$control.run$maxtime/60, 1, x$control.run$maxtime/60, 1, col="gray")
-	legend("bottomright", paste(method.names, " (", colSums(!whichfail, na.rm=TRUE), ")", sep=""), col=col, lty=lty, bty="n", lwd=2)
+	legend(par("usr")[2], par("usr")[4], paste(method.names, " (", colSums(!whichfail, na.rm=TRUE), ")", sep=""), col=col, lty=lty, bty="n", lwd=2, xpd=TRUE)
+	##legend("bottomright", paste(method.names, " (", colSums(!whichfail, na.rm=TRUE), ")", sep=""), col=col, lty=lty, bty="n", lwd=2)
 }
 
 ########################################
