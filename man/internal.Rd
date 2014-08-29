@@ -17,7 +17,8 @@
 \title{Internal functions for turboEM}
 \description{turboEM functions not to be called by users.} 
 \usage{
-	accelerate(par, fixptfn, objfn, method = c("em", "squarem", "pem", "decme", "qn"), boundary = NULL, pconstr = NULL, project = NULL, ..., control = list())
+accelerate(par, fixptfn, objfn, method = c("em","squarem","pem","decme","qn"), 
+  boundary = NULL, pconstr = NULL, project = NULL, ..., control = list())
 }
 \arguments{
 	\item{par}{See \code{\link{turboem}}.}

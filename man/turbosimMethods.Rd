@@ -11,10 +11,17 @@
 \description{The \code{turbosim} class represents results from benchmark studies of algorithms to acceleration parameter estimation in fixed-point mapping problems.}
 \usage{
 \method{print}{turbosim}(x, ...)
-\method{summary}{turbosim}(object, which.methods = seq_along(object$method), method.names = object$method.names[which.methods], eps = 0.1, sol = NULL, ...)
-\method{boxplot}{turbosim}(x, which.methods = seq_along(x$method), method.names = x$method.names[which.methods], whichfail = (x$fail | !x$conv)[,which.methods], xunit="sec", log=FALSE, ...)
-\method{dataprof}{turbosim}(x, which.methods = seq_along(x$method), method.names = x$method.names[which.methods], whichfail = (x$fail | !x$conv)[,which.methods], col, lty, nout = 50, xlim, ...)
-\method{pairs}{turbosim}(x, which.methods=seq_along(x$method), method.names = x$method.names[which.methods], whichfail = (x$fail | !x$conv)[,which.methods], ...)
+\method{summary}{turbosim}(object, which.methods = seq_along(object$method), 
+method.names = object$method.names[which.methods], eps = 0.1, sol = NULL, ...)
+\method{boxplot}{turbosim}(x, which.methods = seq_along(x$method), 
+method.names = x$method.names[which.methods], 
+whichfail = (x$fail | !x$conv)[,which.methods], xunit="sec", log=FALSE, ...)
+\method{dataprof}{turbosim}(x, which.methods = seq_along(x$method), 
+method.names = x$method.names[which.methods], 
+whichfail = (x$fail | !x$conv)[,which.methods], col, lty, nout = 50, xlim, ...)
+\method{pairs}{turbosim}(x, which.methods=seq_along(x$method), 
+method.names = x$method.names[which.methods], 
+whichfail = (x$fail | !x$conv)[,which.methods], ...)
 }
 
 \arguments{

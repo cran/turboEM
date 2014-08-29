@@ -4,9 +4,10 @@
 \description{The \code{turboSim} function conducts benchmark studies to compare performance of multiple acceleration schemes over a large number of repetitions. The \code{\link{turboSim}} function outputs objects of class \code{turbosim}.}
 
 \usage{
-	turboSim(parmat, fixptfn, objfn, method = c("em", "squarem", "pem", "decme", "qn"), 
-		 boundary, pconstr = NULL, project = NULL, parallel = FALSE, 
-		 method.names, keep.pars = FALSE, ..., control.method = replicate(length(method),list()), control.run = list())
+turboSim(parmat, fixptfn, objfn, method = c("em","squarem","pem","decme","qn"), 
+  boundary, pconstr = NULL, project = NULL, parallel = FALSE, method.names, 
+  keep.pars = FALSE, ..., control.method = replicate(length(method),list()), 
+  control.run = list())
 }
 
 \arguments{

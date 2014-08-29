@@ -11,6 +11,10 @@ export(
 
 importFrom("numDeriv", grad, hessian)
 importFrom("graphics", boxplot, pairs)
+import("doParallel")
+import("foreach")
+importFrom(iterators, iter)
+import("quantreg")
 
 S3method(print, turbo)
 S3method(plot, turbo)

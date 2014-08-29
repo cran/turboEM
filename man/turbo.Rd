@@ -19,10 +19,14 @@
 \method{print}{turbo}(x, ...)
 \method{pars}{turbo}(x, ...)
 \method{error}{turbo}(x, ...)
-\method{plot}{turbo}(x, which.methods = seq_along(x$method), method.names = x$method[which.methods], xlim, ylim, ...)
-\method{grad}{turbo}(x, objfn=x$objfn, which.methods = seq_along(x$method), method.names = x$method[which.methods], ...)
-\method{hessian}{turbo}(x, objfn=x$objfn, which.methods = seq_along(x$method), method.names = x$method[which.methods], ...)
-\method{stderror}{turbo}(x, objfn=x$objfn, which.methods = seq_along(x$method), method.names = x$method[which.methods], ...)
+\method{plot}{turbo}(x, which.methods = seq_along(x$method), 
+method.names = x$method[which.methods], xlim, ylim, ...)
+\method{grad}{turbo}(x, objfn=x$objfn, which.methods = seq_along(x$method), 
+  method.names = x$method[which.methods], ...)
+\method{hessian}{turbo}(x, objfn=x$objfn, which.methods = seq_along(x$method), 
+  method.names = x$method[which.methods], ...)
+\method{stderror}{turbo}(x, objfn=x$objfn, which.methods = seq_along(x$method), 
+  method.names = x$method[which.methods], ...)
 }
 \arguments{
     \item{x}{An object of class \code{turbo}, typically the output of a call to \code{\link{turboem}}.}
@@ -112,12 +116,14 @@ stderror(res1)
 error(res1)
 
 # We get an error for Dynamic ECME (decme) if we do not specify the boundary function
-res2 <- turboem(par=p0, y=y, fixptfn=fixptfn, objfn=objfn, method=c("EM", "squarem", "pem", "decme"))
+res2 <- turboem(par=p0, y=y, fixptfn=fixptfn, objfn=objfn, 
+  method=c("EM", "squarem", "pem", "decme"))
 res2
 error(res2)
 
 # we can't plot the results, because we did not store the objective function value at each iteration
 # Changing the options to store the objective function values, we can:
-res1keep <- turboem(par=p0, y=y, fixptfn=fixptfn, objfn=objfn, method=c("EM", "squarem", "pem"), control.run=list(keep.objfval=TRUE))
+res1keep <- turboem(par=p0, y=y, fixptfn=fixptfn, objfn=objfn, method=c("EM", "squarem", "pem"), 
+  control.run=list(keep.objfval=TRUE))
 plot(res1keep, xlim=c(0.001, 0.02))
 }

@@ -71,9 +71,9 @@ turboSim <- function(parmat, fixptfn, objfn, method = c("em", "squarem", "pem", 
 	}
 	
 	if(parallel) {
-		results <- foreach(par = iter(parmat, by="row"), .packages="turboEM", .combine=combine.nocheck) %dopar% turboem(par=par, fixptfn=fixptfn, objfn=objfn, method=method, boundary=boundary, pconstr=pconstr, project=project, parallel=FALSE, ..., control.method=control.method, control.run=control.run) 
+		results <- foreach(par = iterators::iter(parmat, by="row"), .packages="turboEM", .combine=combine.nocheck) %dopar% turboem(par=par, fixptfn=fixptfn, objfn=objfn, method=method, boundary=boundary, pconstr=pconstr, project=project, parallel=FALSE, ..., control.method=control.method, control.run=control.run) 
 	} else {
-		results <- foreach(par = iter(parmat, by="row"), .packages="turboEM", .combine=combine.nocheck) %do% turboem(par=par, fixptfn=fixptfn, objfn=objfn, method=method, boundary=boundary, pconstr=pconstr, project=project, parallel=FALSE, ..., control.method=control.method, control.run=control.run) 		
+		results <- foreach(par = iterators::iter(parmat, by="row"), .packages="turboEM", .combine=combine.nocheck) %do% turboem(par=par, fixptfn=fixptfn, objfn=objfn, method=method, boundary=boundary, pconstr=pconstr, project=project, parallel=FALSE, ..., control.method=control.method, control.run=control.run) 		
 	}
 	
 	if(!missing(method.names)) results$method.names <- method.names

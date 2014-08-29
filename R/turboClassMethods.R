@@ -107,7 +107,6 @@ grad.turbo <- function(x, objfn=x$objfn, which.methods = seq_along(x$method), me
 	## method.names = names of the algorithms identified by 'which.methods'
 	if(is.null(objfn))
 		stop("objfn must be provided to compute gradient")
-	require(numDeriv)
 	subs <- (!x$fail)[which.methods]
 	select.methods <- which.methods[subs]
 	mat <- matrix(NA, length(select.methods), ncol(x$par))
@@ -135,7 +134,6 @@ hessian.turbo <- function(x, objfn=x$objfn, which.methods = seq_along(x$method),
 	## method.names = names of the algorithms identified by 'which.methods'
 	if(is.null(objfn))
 		stop("objfn must be provided to compute hessian")
-	require(numDeriv)
 	subs <- (!x$fail)[which.methods]
 	select.methods <- which.methods[subs]
 	lst <- vector("list", length(select.methods))

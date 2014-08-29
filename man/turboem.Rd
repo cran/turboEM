@@ -4,9 +4,9 @@
 \description{Globally-convergent, partially monotone, acceleration schemes for accelerating the convergence of \emph{any} smooth, monotone, slowly-converging contraction mapping. It can be used to accelerate the convergence of a wide variety of iterations including the expectation-maximization (EM) algorithms and its variants, majorization-minimization (MM) algorithm, power method for dominant eigenvalue-eigenvector, Google's page-rank algorithm, and multi-dimensional scaling.
 }
 \usage{
-	turboem(par, fixptfn, objfn, method = c("em", "squarem", "pem", "decme", "qn"), 
-	boundary, pconstr = NULL, project = NULL, parallel = FALSE, ..., control.method = replicate(length(method),list()), 
-	control.run = list())
+	turboem(par, fixptfn, objfn, method = c("em","squarem","pem","decme","qn"), 
+	boundary, pconstr = NULL, project = NULL, parallel = FALSE, ..., 
+  control.method = replicate(length(method),list()), control.run = list())
 }
 \arguments{
     \item{par}{A vector of parameters denoting the initial guess for the fixed point.}
@@ -155,7 +155,7 @@ res2 <- turboem(par = p0, y = y, fixptfn = fixptfn, objfn = objfn,
 # change some of the algorithm-specific default specifications (control.method), 
 # as well as the global control parameters (control.run)
 res3 <- turboem(par = p0, y = y, fixptfn = fixptfn, objfn = objfn, 
-	boundary = boundary, method = c("em", "squarem", "squarem", "decme", "qn", "qn"), 
+  boundary = boundary, method = c("em", "squarem", "squarem", "decme", "qn", "qn"), 
 	control.method = list(list(), list(K = 2), list(K = 3), 
 		list(version = "v3"), list(qn = 1), list(qn = 2)),
 	control.run = list(tol = 1e-12, stoptype = "maxtime", maxtime = 1))
@@ -165,7 +165,9 @@ res3 <- turboem(par = p0, y = y, fixptfn = fixptfn, objfn = objfn,
 res4 <- turboem(par = p0, y = y, fixptfn = fixptfn, 
 	method = c("em", "squarem", "squarem"), 
 	control.method = list(list(), list(K = 1), list(K = 2)))
-# If no objective function is provided, the "squarem" method defaults to Squarem-2 (or if control parameter K > 1, to Cyclem-2). Compare Squarem with and without objective function provided:
+# If no objective function is provided, the "squarem" method defaults to Squarem-2 
+# Or, if control parameter K > 1, it defaults to Cyclem-2. 
+# Compare Squarem with and without objective function provided:
 res5 <- turboem(par = p0, y = y, fixptfn = fixptfn, method = "squarem")
 res5
 res6 <- turboem(par = p0, y = y, fixptfn = fixptfn, objfn = objfn, method = "squarem")
