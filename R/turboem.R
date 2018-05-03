@@ -784,16 +784,14 @@ bodySquarem2 <- function(input.squarem2, ctrl, fixptfn, objfn, pconstr, project,
 	extrap <- TRUE
 	p1 <- try(fixptfn(par, ...), silent = TRUE)
 	fpeval <- fpeval + 1
-	if (class(p1) == "try-error" | any(is.nan(unlist(p1)))) 
-		break
+	if (class(p1) == "try-error" | any(is.nan(unlist(p1)))) stop("Error occurred")
 	q1 <- p1 - par
 	sr2 <- crossprod(q1)
 	# if (sqrt(sr2) < tol) 
 	# break
 	p2 <- try(fixptfn(p1, ...), silent = TRUE)
 	fpeval <- fpeval + 1
-	if (class(p2) == "try-error" | any(is.nan(unlist(p2)))) 
-		break
+	if (class(p2) == "try-error" | any(is.nan(unlist(p2)))) stop("Error occurred")
 	q2 <- p2 - p1
 	sq2 <- sqrt(crossprod(q2))
 	res <- sq2
@@ -849,16 +847,14 @@ bodySquarem2 <- function(input.squarem2, ctrl, fixptfn, objfn, pconstr, project,
 	extrap <- TRUE
 	p1 <- try(fixptfn(par, ...), silent = TRUE)
 	fpeval <- fpeval + 1
-	if (class(p1) == "try-error" | any(is.nan(unlist(p1)))) 
-		break
+	if (class(p1) == "try-error" | any(is.nan(unlist(p1)))) stop("Error occurred")
 	q1 <- p1 - par
 	sr2 <- crossprod(q1)
 	# if (sqrt(sr2) < tol) 
 	# break
 	p2 <- try(fixptfn(p1, ...), silent = TRUE)
 	fpeval <- fpeval + 1
-	if (class(p2) == "try-error" | any(is.nan(unlist(p2)))) 
-		break
+	if (class(p2) == "try-error" | any(is.nan(unlist(p2)))) stop("Error occurred")
 	q2 <- p2 - p1
 	sq2 <- sqrt(crossprod(q2))
 	res <- sq2
