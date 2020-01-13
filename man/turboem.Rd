@@ -185,4 +185,7 @@ Y He and C Liu (2010) The Dynamic ECME Algorithm. Technical Report. arXiv:1004.0
 H Zhou, DH Alexander, and KL Lange (2011). A quasi-Newton acceleration for high-dimensional optimization algorithms. \emph{Stat Comput}. 21 (2) 261-273.
 }
 
-\keyword{optimization, EM algorithm, MM algorithm, fixed-point iteration}
+\concept{EM algorithm}
+\concept{optimization}
+\concept{MM algorithm}
+\concept{fixed-point iteration}

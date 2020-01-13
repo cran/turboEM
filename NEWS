@@ -11,3 +11,7 @@ Changes in turboEM version 2012.2-1
 
 Changes in turboEM version 2014.8-1 
 	o third release:  August 27, 2014
+
+Changes in turboEM version 2020.1 
+   o   	January 2, 2020
+	- changed code for detecting "try-error" to conform to the changes in latest R release

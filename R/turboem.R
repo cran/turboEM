@@ -448,7 +448,7 @@ line.search <- function(pnew, p1, p0, llnew, tol_op, boundary, objfn, ...) {
 		return(objfn(par+rho*dr, ...))
 	}
 	res <- try(optimize(fct, temp, par=pnew, dr=dr, tol=tol_op, ...), silent=TRUE)
-	if( class(res)!="try-error"){
+	if( !inherits(res, "try-error")){
 		if(is.finite(res$objective)){
 			if(res$objective < -llnew){
 				pnew.tmp <- pnew + res$minimum*dr
@@ -565,7 +565,7 @@ bodyParaEM <- function(input.paraEM, ctrl, fixptfn, objfn, pconstr, project, ite
 	Lnew <- try(-objfn(pnew, ...), silent=TRUE)
 	objfeval <- objfeval + 1
 	## Hui added !pconstr(pnew) here
-	if(class(Lnew)=="try-error" | is.nan(Lnew) | no.pconstr | Lnew <= L2) { 
+	if(inherits(Lnew, "try-error") | is.nan(Lnew) | no.pconstr | Lnew <= L2) { 
 		p0 <- p2
 		p1 <- fixptfn(p0, ...)
 		p2 <- fixptfn(p1, ...)
@@ -583,7 +583,7 @@ bodyParaEM <- function(input.paraEM, ctrl, fixptfn, objfn, pconstr, project, ite
 			Lnew <- try(-objfn(pnew, ...), silent=TRUE)
 			objfeval <- objfeval + 1
 			## Hui added !pconstr(pnew) [no.pconstr] here
-			if(class(Lnew)=="try-error" | no.pconstr | is.nan(Lnew) | any(is.nan(unlist(pnew)))) {
+			if(inherits(Lnew, "try-error") | no.pconstr | is.nan(Lnew) | any(is.nan(unlist(pnew)))) {
 				pnew <- pold
 				Lnew <- L2
 			}
@@ -659,7 +659,7 @@ bodyQuasiNewton <- function(input.quasiNewton, ctrl, fixptfn, objfn, pconstr, pr
 	pold <- par
 	##tmp <- try(solve(t(U)%*%U-t(U)%*%V),silent=TRUE)
 	tmp <- try(solve(crossprod(U, U-V)),silent=TRUE)
-	if(class(tmp)=='try-error')
+	if(inherits(tmp, "try-error"))
 		# reassign p.next to be
 		p.next <- pnew2
 	else
@@ -710,13 +710,13 @@ bodySquarem1 <- function(input.squarem1, ctrl, fixptfn, objfn, pconstr, project,
 	extrap <- TRUE
 	p1 <- try(fixptfn(p, ...), silent = TRUE)
 	fpeval <- fpeval + 1
-	if (class(p1) == "try-error" | any(is.nan(unlist(p1)))) 
+	if (inherits(p1, "try-error") | any(is.nan(unlist(p1)))) 
 		stop("Error in function evaluation")
 	q1 <- p1 - p
 	sr2 <- crossprod(q1)
 	p2 <- try(fixptfn(p1, ...), silent = TRUE)
 	pfeval <- fpeval + 1
-	if (class(p2) == "try-error" | any(is.nan(unlist(p2)))) 
+	if (inherits(p2, "try-error") | any(is.nan(unlist(p2)))) 
 		stop("Error in function evaluation")
 	q2 <- p2 - p1
 	sq2 <- sqrt(crossprod(q2))
@@ -733,7 +733,7 @@ bodySquarem1 <- function(input.squarem1, ctrl, fixptfn, objfn, pconstr, project,
 		p.new <- try(fixptfn(p.new, ...), silent = TRUE)
 		fpeval <- fpeval + 1
 	}
-	if (class(p.new) == "try-error" | any(is.nan(p.new)) | !pconstr(p.new)) {
+	if (inherits(p.new, "try-error") | any(is.nan(p.new)) | !pconstr(p.new)) {
 		p.new <- p2
 		lnew <- try(objfn(p2, ...), silent = TRUE)
 		objfeval <- objfeval + 1
@@ -749,7 +749,7 @@ bodySquarem1 <- function(input.squarem1, ctrl, fixptfn, objfn, pconstr, project,
 			objfeval <- objfeval + 1
 		}
 		else lnew <- lold
-		if (class(lnew) == "try-error" | is.nan(lnew) | (lnew > 
+		if (inherits(lnew, "try-error") | is.nan(lnew) | (lnew > 
 					lold + ctrl$objfn.inc)) {
 			p.new <- p2
 			lnew <- try(objfn(p2, ...), silent = TRUE)
@@ -784,14 +784,14 @@ bodySquarem2 <- function(input.squarem2, ctrl, fixptfn, objfn, pconstr, project,
 	extrap <- TRUE
 	p1 <- try(fixptfn(par, ...), silent = TRUE)
 	fpeval <- fpeval + 1
-	if (class(p1) == "try-error" | any(is.nan(unlist(p1)))) stop("Error occurred")
+	if (inherits(p1, "try-error") | any(is.nan(unlist(p1)))) stop("Error occurred")
 	q1 <- p1 - par
 	sr2 <- crossprod(q1)
 	# if (sqrt(sr2) < tol) 
 	# break
 	p2 <- try(fixptfn(p1, ...), silent = TRUE)
 	fpeval <- fpeval + 1
-	if (class(p2) == "try-error" | any(is.nan(unlist(p2)))) stop("Error occurred")
+	if (inherits(p2, "try-error") | any(is.nan(unlist(p2)))) stop("Error occurred")
 	q2 <- p2 - p1
 	sq2 <- sqrt(crossprod(q2))
 	res <- sq2
@@ -809,7 +809,7 @@ bodySquarem2 <- function(input.squarem2, ctrl, fixptfn, objfn, pconstr, project,
 	if (isTRUE(abs(alpha - 1) > 0.01) ) {	
 		ptmp <- try(fixptfn(p.new, ...), silent = TRUE)
 		fpeval <- fpeval + 1
-		if (class(ptmp) == "try-error" | any(is.nan(unlist(ptmp))) | !pconstr(ptmp)) {
+		if (inherits(ptmp, "try-error") | any(is.nan(unlist(ptmp))) | !pconstr(ptmp)) {
 			p.new <- p2
 			# Modified (JFB 30Jan2012)
 			# if (alpha == step.max) 
@@ -847,14 +847,14 @@ bodySquarem2 <- function(input.squarem2, ctrl, fixptfn, objfn, pconstr, project,
 	extrap <- TRUE
 	p1 <- try(fixptfn(par, ...), silent = TRUE)
 	fpeval <- fpeval + 1
-	if (class(p1) == "try-error" | any(is.nan(unlist(p1)))) stop("Error occurred")
+	if (inherits(p1, "try-error") | any(is.nan(unlist(p1)))) stop("Error occurred")
 	q1 <- p1 - par
 	sr2 <- crossprod(q1)
 	# if (sqrt(sr2) < tol) 
 	# break
 	p2 <- try(fixptfn(p1, ...), silent = TRUE)
 	fpeval <- fpeval + 1
-	if (class(p2) == "try-error" | any(is.nan(unlist(p2)))) stop("Error occurred")
+	if (inherits(p2, "try-error") | any(is.nan(unlist(p2)))) stop("Error occurred")
 	q2 <- p2 - p1
 	sq2 <- sqrt(crossprod(q2))
 	res <- sq2
@@ -872,7 +872,7 @@ bodySquarem2 <- function(input.squarem2, ctrl, fixptfn, objfn, pconstr, project,
 	if (isTRUE(abs(alpha - 1) > 0.01) ) {
 		ptmp <- try(fixptfn(p.new, ...), silent = TRUE)
 		fpeval <- fpeval + 1
-		if (class(ptmp) == "try-error" | any(is.nan(unlist(ptmp))) | !pconstr(ptmp)) {
+		if (inherits(ptmp, "try-error") | any(is.nan(unlist(ptmp))) | !pconstr(ptmp)) {
 			p.new <- p2
 			if (alpha == step.max) 
 				step.max <- max(ctrl$step.max0, step.max/ctrl$mstep)
@@ -915,7 +915,7 @@ bodyCyclem1 <- function(input.cyclem1, ctrl, fixptfn, objfn, pconstr, project, i
 	for (i in 2:(K + 2)) {
 		p[, i] <- try(fixptfn(p[, i - 1], ...), silent = TRUE)
 		fpeval <- fpeval + 1
-		if (class(p[, i]) == "try-error" | any(is.nan(unlist(p[, 
+		if (inherits(p[,i], "try-error") | any(is.nan(unlist(p[, 
 										i]))) | any(!is.numeric(p[, i]))) 
 			stop("Error in function evaluation \n")
 		U[, i - 1] <- p[, i] - p[, i - 1]
@@ -924,7 +924,7 @@ bodyCyclem1 <- function(input.cyclem1, ctrl, fixptfn, objfn, pconstr, project, i
 	if (ctrl$version == "rre") {
 		coef <- try(solve(qr(crossprod(U), LAPACK = TRUE, 
 								tol = 1e-14), rep(1, K + 1)), silent = TRUE)
-		if (class(coef) == "try-error" | any(is.nan(coef))) {
+		if (inherits(coef, "try-error") | any(is.nan(coef))) {
 			extrap <- FALSE
 		}
 		else {
@@ -938,7 +938,7 @@ bodyCyclem1 <- function(input.cyclem1, ctrl, fixptfn, objfn, pconstr, project, i
 	if (ctrl$version == "mpe") {
 		coef <- try(solve(qr(U[, -(K + 1)], LAPACK = TRUE, 
 								tol = 1e-14), -U[, K + 1]), silent = TRUE)
-		if (class(coef) == "try-error" | any(is.nan(coef))) {
+		if (inherits(coef, "try-error") | any(is.nan(coef))) {
 			extrap <- FALSE
 		}
 		else {
@@ -968,7 +968,7 @@ bodyCyclem1 <- function(input.cyclem1, ctrl, fixptfn, objfn, pconstr, project, i
 			for (i in 1:(K - 1)) {
 				p <- try(cbind(p, fixptfn(p[, i + K + 1], ...)), silent = TRUE)
 				fpeval <- fpeval + 1
-				if (class(p) == "try-error" | any(is.nan(unlist(p))) | any(!is.numeric(p))) 
+				if (inherits(p, "try-error") | any(is.nan(unlist(p))) | any(!is.numeric(p))) 
 					stop("Error in function evaluation \n")
 			}
 		}
@@ -979,15 +979,14 @@ bodyCyclem1 <- function(input.cyclem1, ctrl, fixptfn, objfn, pconstr, project, i
 		}
 		if(!pconstr(pnew))
 			pnew <- project(pnew)
-		sqKp1 <- sqrt(c(crossprod(p[, 2 * K] - p[, 2 * K - 
-												1])))
+		sqKp1 <- sqrt(c(crossprod(p[, 2 * K] - p[, 2 * K - 1])))
 	}
 	if (extrap) {
 		ptmp <- try(fixptfn(pnew, ...), silent = TRUE)
 		fpeval <- fpeval + 1
 		res <- sqrt(c(crossprod(ptmp - pnew)))
 	}
-	if (class(ptmp) == "try-error" | any(is.nan(unlist(ptmp))) | !pconstr(ptmp)) {
+	if (inherits(ptmp, "try-error") | any(is.nan(unlist(ptmp))) | !pconstr(ptmp)) {
 		pnew <- p[, ncol(p)]
 		res <- sqKp1
 		extrap <- FALSE
@@ -995,7 +994,7 @@ bodyCyclem1 <- function(input.cyclem1, ctrl, fixptfn, objfn, pconstr, project, i
 	else pnew <- ptmp
 	lnew <- try(objfn(pnew, ...), silent = TRUE)
 	objfeval <- objfeval + 1
-	if (class(lnew) == "try-error" | is.nan(lnew) | (lnew > 
+	if (inherits(lnew, "try-error") | is.nan(lnew) | (lnew > 
 				lold + ctrl$objfn.inc)) {
 		pnew <- p[, ncol(p)]
 		res <- sqKp1
@@ -1018,7 +1017,7 @@ bodyCyclem2 <- function(input.cyclem2, ctrl, fixptfn, objfn, pconstr, project, i
 	for (i in 2:(K + 2)) {
 		p[, i] <- try(fixptfn(p[, i - 1], ...), silent = TRUE)
 		fpeval <- fpeval + 1
-		if (class(p[, i]) == "try-error" | any(is.nan(unlist(p[, 
+		if (inherits(p[,i], "try-error") | any(is.nan(unlist(p[, 
 										i]))) | any(!is.numeric(p[, i]))) 
 			stop("Error in function evaluation")
 		U[, i - 1] <- p[, i] - p[, i - 1]
@@ -1027,7 +1026,7 @@ bodyCyclem2 <- function(input.cyclem2, ctrl, fixptfn, objfn, pconstr, project, i
 	if (ctrl$version == "rre") {
 		coef <- try(solve(qr(crossprod(U), LAPACK = TRUE, 
 								tol = 1e-14), rep(1, K + 1)), silent = TRUE)
-		if (class(coef) == "try-error" | any(is.nan(coef))) {
+		if (inherits(coef, "try-error") | any(is.nan(coef))) {
 			extrap <- FALSE
 		}
 		else {
@@ -1041,7 +1040,7 @@ bodyCyclem2 <- function(input.cyclem2, ctrl, fixptfn, objfn, pconstr, project, i
 	if (ctrl$version == "mpe") {
 		coef <- try(solve(qr(U[, -(K + 1)], LAPACK = TRUE, 
 								tol = 1e-14), -U[, K + 1]), silent = TRUE)
-		if (class(coef) == "try-error" | any(is.nan(coef))) {
+		if (inherits(coef, "try-error") | any(is.nan(coef))) {
 			extrap <- FALSE
 		}
 		else {
@@ -1071,7 +1070,7 @@ bodyCyclem2 <- function(input.cyclem2, ctrl, fixptfn, objfn, pconstr, project, i
 				p <- try(cbind(p, fixptfn(p[, i + K + 1], ...)), 
 						silent = TRUE)
 				fpeval <- fpeval + 1
-				if (class(p) == "try-error" | any(is.nan(unlist(p))) | 
+				if (inherits(p, "try-error") | any(is.nan(unlist(p))) | 
 						any(!is.numeric(p))) 
 					stop("Error in function evaluation")
 			}
@@ -1089,7 +1088,7 @@ bodyCyclem2 <- function(input.cyclem2, ctrl, fixptfn, objfn, pconstr, project, i
 	}
 	ptemp <- try(fixptfn(pnew, ...), silent = TRUE)
 	fpeval <- fpeval + 1
-	if (class(ptemp) == "try-error" | any(is.nan(ptemp)) | !pconstr(ptemp)) {
+	if (inherits(ptemp, "try-error") | any(is.nan(ptemp)) | !pconstr(ptemp)) {
 		par <- p[, ncol(p)]
 		res <- sqKp1
 		extrap <- FALSE

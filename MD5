@@ -1,11 +1,11 @@
-4f39076a72f915776d9419d0b5abb103 *DESCRIPTION
+0e07e340a6423bb732adc48c4dcc52f8 *DESCRIPTION
 c92335e8df8383e8177f5a7bed50ddc7 *NAMESPACE
-ccc7566b6c35585c193211ebafe867e3 *NEWS
+655df1f462d5a0865408e433892cd129 *NEWS
 d8bf5e4b836aec638472e7bad567d0bf *R/turboClassMethods.R
 027e40348d7e1c06bc60eb3a3eeec00d *R/turboSim.R
-24371beb24555251a66d26072d4f5d67 *R/turboem.R
+eb19cc7a7737d6c822729ee06d0d9ed8 *R/turboem.R
 52b3840af70f4b10a415390f183a6039 *R/turbosimMethods.R
-2d870178615cf91b9b87e8cdf85352e5 *build/vignette.rds
+a2645529489c5f6da58d76914fd99ace *build/vignette.rds
 68e81d24cc50eb7754625b664085c910 *data/implants.RData
 b2523b2accdc621d2ae3fb5858a5cea1 *data/parties.RData
 089be08d13b50abffe04bc355ac803d5 *data/psychfactors.RData
@@ -13,7 +13,7 @@ a4e7e490b32127e0f9db1495b9e97b52 *data/rats.RData
 a52bc43d3f60a4374d2adc241c12f797 *data/votes.RData
 f5e51a66503763924b5907f182f4dc28 *inst/doc/turboEM.R
 b3fba1bdacc7260b32ec749451406d6f *inst/doc/turboEM.Rnw
-6fde292372e4e3a0dafb942e316e0259 *inst/doc/turboEM.pdf
+a8d799631136ed9fa6b534bc327d5cc7 *inst/doc/turboEM.pdf
 c6e4da5a863a97b10a22e466d454ae9a *man/implants.Rd
 6a510ab223209a2261839686f3fc4bd3 *man/internal.Rd
 e358f1b5da1b629dd053eccdfe4efcb3 *man/parties.Rd
@@ -21,7 +21,7 @@ e358f1b5da1b629dd053eccdfe4efcb3 *man/parties.Rd
 1753cd69dec48d43d0051233719cd93f *man/rats.Rd
 d7a36e43ac405a6a9e2d3e6223fe47fc *man/turbo.Rd
 0690dc358ad70760e0668bd61f138713 *man/turboSim.Rd
-6a2367a10fd542a779e4d42054462865 *man/turboem.Rd
+5e2bbd5fc2e4adfd6b63bd56504cbbc9 *man/turboem.Rd
 e5b2cf6d78beb56cc501dfa44532d017 *man/turbosimMethods.Rd
 4f52859bb2816d853b8d2e07e4cf7dbe *man/votes.Rd
 b3fba1bdacc7260b32ec749451406d6f *vignettes/turboEM.Rnw
