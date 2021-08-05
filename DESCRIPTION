@@ -11,7 +11,7 @@ Description: Algorithms for accelerating the convergence of slow,
 Depends: R (>= 2.12.0), doParallel, foreach, numDeriv, quantreg
 Imports: iterators
 Suggests: setRNG
-Version: 2020.1
+Version: 2021.1
 LazyLoad: yes
 License: GPL-2
 Author: Jennifer F. Bobb [aut],
@@ -23,9 +23,8 @@ Authors@R: c( person(given = c("Jennifer", "F."), family = "Bobb", role =
         "Ravi", family = "Varadhan", role = c("aut", "cre"), email =
         "ravi.varadhan@jhu.edu"), person(given = "Hui", family =
         "Zhao", role = "ctb"))
-URL:
-        http://www.jhsph.edu/agingandhealth/People/Faculty_personal_pages/Varadhan.html
+URL: https://coah.jhu.edu/people/Faculty_personal_Pages/Varadhan.html
 Repository: CRAN
-Packaged: 2020-01-13 15:33:58 UTC; rvaradh1
+Packaged: 2021-08-03 19:29:44 UTC; rvaradh1
 NeedsCompilation: no
-Date/Publication: 2020-01-13 16:40:02 UTC
+Date/Publication: 2021-08-05 04:20:02 UTC

@@ -15,3 +15,7 @@ Changes in turboEM version 2014.8-1
 Changes in turboEM version 2020.1 
    o   	January 2, 2020
 	- changed code for detecting "try-error" to conform to the changes in latest R release
+
+Changes in turboEM version 2021.1 
+   o   	August 3, 2021
+	- added an additional argument to "control" list to allow the algorithm to output a matrix of parameter values at each iteration

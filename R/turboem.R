@@ -20,7 +20,7 @@ turboem <- function(par, fixptfn, objfn = NULL, method = c("em", "squarem", "pem
 			
 	if(missing(objfn)) objfn <- NULL
 			
-	control.run.default <- list(convtype = "parameter", tol = 1e-07, stoptype = "maxiter", maxiter = 1500, maxtime = 60, convfn.user = NULL, stopfn.user = NULL, trace = FALSE, keep.objfval = FALSE)
+	control.run.default <- list(convtype = "parameter", tol = 1e-07, stoptype = "maxiter", maxiter = 1500, maxtime = 60, convfn.user = NULL, stopfn.user = NULL, trace = FALSE, keep.objfval = FALSE, keep.paramval = FALSE)
 	namc <- names(control.run)
 	if(!all(namc %in% names(control.run.default))) {stop("unknown names in control.run: ", namc[!(namc %in% names(control.run.default))])}
 	control.run <- modifyList(control.run.default, control.run)
@@ -36,6 +36,11 @@ turboem <- function(par, fixptfn, objfn = NULL, method = c("em", "squarem", "pem
 		trace.objfval <- NULL
 	} else {
 		trace.objfval <- vector("list", length(method))
+	}
+	if(!control.run$keep.paramval) {
+	  trace.paramval <- NULL
+	} else {
+	  trace.paramval <- vector("list", length(method))
 	}
 	# Modified (JFB 30Jan2012)
 	if(parallel) {
@@ -59,6 +64,9 @@ turboem <- function(par, fixptfn, objfn = NULL, method = c("em", "squarem", "pem
 			if(control.run$keep.objfval) {
 				trace.objfval[[j]] <- NA
 			}
+			if(control.run$keep.paramval) {
+			  trace.paramval[[j]] <- NA
+			}
 		} else {
 			errors[j] <- NA
 			pars[j,] <- res$par
@@ -70,6 +78,9 @@ turboem <- function(par, fixptfn, objfn = NULL, method = c("em", "squarem", "pem
 			runtime[j,] <- round(res$runtime[1:3], 3)
 			if(control.run$keep.objfval) {
 				trace.objfval[[j]] <- res$trace.objfval
+			}
+			if(control.run$keep.paramval) {
+			  trace.paramval[[j]] <- res$trace.paramval
 			}
 			control.method[[j]] <- res$control
 		}
@@ -87,7 +98,7 @@ turboem <- function(par, fixptfn, objfn = NULL, method = c("em", "squarem", "pem
 		sel <- names(formals(pconstr))[names(formals(pconstr)) %in% arg.names]
 		formals(pconstr)[sel] <- lst[sel]
 	}
-	ret <- list(fail=fail, value.objfn=value.objfn, itr=itr, fpeval=fpeval, objfeval=objfeval, convergence=convergence, runtime=runtime, errors=errors, pars=pars, method=method, trace.objfval=trace.objfval, control.method=control.method, control.run=control.run, fixptfn=fixptfn, objfn=obfjn.return, pconstr=pconstr, project=project)
+	ret <- list(fail=fail, value.objfn=value.objfn, itr=itr, fpeval=fpeval, objfeval=objfeval, convergence=convergence, runtime=runtime, errors=errors, pars=pars, method=method, trace.objfval=trace.objfval, trace.paramval=trace.paramval, control.method=control.method, control.run=control.run, fixptfn=fixptfn, objfn=obfjn.return, pconstr=pconstr, project=project)
 	class(ret) <- "turbo"
 	return(ret)
 }
@@ -107,7 +118,7 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 	# control = list of general control parameters for convergence and stopping criteria, as well as algorithm-specific control parameters
 	
 	env <- new.env()
-	control.default <- list(convtype = "parameter", tol = 1e-07, stoptype = "maxiter", maxiter = 1500, maxtime = 60, convfn.user = NULL, stopfn.user = NULL, trace = FALSE, keep.objfval = FALSE, use.pconstr = TRUE)
+	control.default <- list(convtype = "parameter", tol = 1e-07, stoptype = "maxiter", maxiter = 1500, maxtime = 60, convfn.user = NULL, stopfn.user = NULL, trace = FALSE, keep.objfval = FALSE, keep.paramval = FALSE, use.pconstr = TRUE)
 	## added use.pconstr (8Feb2012 JFB): this allows user to specify that pconstr not be used even if it is included (useful for benchmark studies where you want to compare including it to not including it)
 	
 	## allow partial matching of method and all lower case
@@ -153,9 +164,11 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 	stopfn.user <- ctrl$stopfn.user
 	trace <- ctrl$trace
 	keep.objfval <- ctrl$keep.objfval
+	keep.paramval <- ctrl$keep.paramval
 	
-	## to store objective function value at each iteration
+	## to store objective function value, parameter estimates at each iteration
 	trace.objfval <- NULL
+	trace.paramval <- NULL
 	
 	## user-defined constraints on parameters
 	# modified 8Feb2012 (JFB)
@@ -351,6 +364,10 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 		##trace.objfval <- rbind(trace.objfval, c((proc.time()-start.time)[3], objfval.old))
 		trace.objfval <- c(trace.objfval, objfval.old)
 	}
+	## trace of parameter estimates
+	if(keep.paramval) {
+	  trace.paramval <- list(par)
+	}
 	## iterate through algorithm
 	iter.starttime <- proc.time()-start.time
 	while(!STOP) {
@@ -395,6 +412,10 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 			##trace.objfval <- rbind(trace.objfval, c((proc.time()-start.time)[3], objfval.new))
 			trace.objfval <- c(trace.objfval, objfval.new)
 		}
+		## history of parameter estimates, if desired
+		if(keep.paramval) {
+		  trace.paramval[[iter+1]] <- p.new
+		}
 		
 		## has convergence been achieved?			
 		if(convfn(old=old, new=new)) {
@@ -423,7 +444,12 @@ accelerate <- function(par, fixptfn, objfn, method = c("em", "squarem", "pem", "
 		time.per.iter <- (proc.time() - start.time - iter.starttime)/iter
 		trace.objfval <- list(time.before.iter=time.before.iter, time.per.iter=time.per.iter, trace=trace.objfval)
 	}
-	ret <- list(par=p.new, value.objfn=objfval.new, itr=iter, fpeval=fpeval, objfeval=objfeval, convergence=convergence, method=method, runtime=proc.time()-start.time, keep.objfval=keep.objfval, trace.objfval=trace.objfval, control=ctrl[!names(ctrl) %in% names(control.default)])
+	if(keep.paramval) {
+	  trace.paramval <- do.call("rbind", trace.paramval)
+	  colnames(trace.paramval) <- names(par)
+	  rownames(trace.paramval) <- c(0L, seq_len(iter))
+	}
+	ret <- list(par=p.new, value.objfn=objfval.new, itr=iter, fpeval=fpeval, objfeval=objfeval, convergence=convergence, method=method, runtime=proc.time()-start.time, keep.objfval=keep.objfval, trace.objfval=trace.objfval, keep.paramval=keep.paramval, trace.paramval=trace.paramval, control=ctrl[!names(ctrl) %in% names(control.default)])
 	class(ret) <- "turboem"
 	return(ret)
 }
