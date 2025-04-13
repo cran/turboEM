@@ -95,11 +95,15 @@ plot.turbo <- function(x, which.methods = seq_along(x$method), method.names = x$
 ########################################
 ########################################
 
-##setGeneric("grad")
-grad.numDeriv <- grad
+# Define helper functions with non-S3 names
+grad_numDeriv <- function(func, x, method = "Richardson", side = NULL, method.args = list(), ...) {
+  numDeriv::grad(func = func, x = x, method = method, side = side, method.args = method.args, ...)
+}
+
 grad <- function(x, ...) {
 	UseMethod("grad")
 }
+
 grad.turbo <- function(x, objfn=x$objfn, which.methods = seq_along(x$method), method.names = x$method[which.methods], ...) {
 	## x = object of class 'turbo'
 	## objfn = objective function to be minimized
@@ -112,7 +116,7 @@ grad.turbo <- function(x, objfn=x$objfn, which.methods = seq_along(x$method), me
 	mat <- matrix(NA, length(select.methods), ncol(x$par))
 	rownames(mat) <- method.names[subs]
 	for(k in seq_along(select.methods)) {
-		mat[k,] <- grad.numDeriv(objfn, x$par[select.methods[k],], method="Richardson", method.args=list(r=2), ...)
+		mat[k,] <- grad_numDeriv(objfn, x$par[select.methods[k],], method="Richardson", method.args=list(r=2), ...)
 	}
 	return(mat)
 }
@@ -123,7 +127,11 @@ grad.turbo <- function(x, objfn=x$objfn, which.methods = seq_along(x$method), me
 ########################################
 ########################################
 
-hessian.numDeriv <- hessian
+#hessian.numDeriv <- hessian
+hessian_numDeriv <- function(func, x, method = "Richardson", method.args = list(), ...) {
+  numDeriv::hessian(func = func, x = x, method = method, method.args = method.args, ...)
+}
+
 hessian <- function(x, ...) {
 	UseMethod("hessian")
 }
@@ -139,7 +147,7 @@ hessian.turbo <- function(x, objfn=x$objfn, which.methods = seq_along(x$method),
 	lst <- vector("list", length(select.methods))
 	names(lst) <- method.names[subs]
 	for(k in seq_along(select.methods)) {
-		lst[[k]] <- hessian.numDeriv(objfn, x$par[select.methods[k],], method="Richardson", method.args=list(r=2), ...)
+		lst[[k]] <- hessian_numDeriv(objfn, x$par[select.methods[k],], method="Richardson", method.args=list(r=2), ...)
 	}
 	return(lst)
 }

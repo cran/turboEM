@@ -23,7 +23,7 @@ turboem(par, fixptfn, objfn, method = c("em","squarem","pem","decme","qn"),
 
     \item{project}{Optional function for defining a projection that maps an out-of-bound parameter value into the constrained parameter space. Requires the \code{pconstr} argument to be specified in order for the \code{project} to be applied.}
 
-    \item{parallel}{Logical indicating whether the acceleration schemes will be run in parallel. Note that the parallel implementation is based on the \code{foreach} package, which depends on a \emph{parallel backend} being registered prior to running \code{turboem()}. See *Details* of \code{\link{foreach}}.}
+    \item{parallel}{Logical indicating whether the acceleration schemes will be run in parallel. Note that the parallel implementation is based on the \code{foreach} package, which depends on a \emph{parallel backend} being registered prior to running \code{turboem()}. See *Details* of \link[foreach:foreach]{foreach}}.
 
     \item{control.method}{If \code{method = c(method1, method2, ...)}, then \code{control.method = list(list1, list2, ...)} where \code{list1} is the list of control parameters for \code{method1}, \code{list2} is the list of control parameters for \code{method2}, and so on. If \code{length(method) == 1}, then \code{control.method} is the list of control parameters for the acceleration scheme.  
    	See *Details*.}
@@ -96,7 +96,7 @@ Two types of alternative stopping criteria have been implemented, with the optio
 }
 }
 \seealso{
-	\code{\link{turbo}} 
+  \code{\link[foreach:foreach]{foreach}}
 }
    
 \examples{

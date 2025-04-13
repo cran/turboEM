@@ -8,14 +8,14 @@ turboem <- function(par, fixptfn, objfn = NULL, method = c("em", "squarem", "pem
 	method <- tolower(method)
 	method <- match.arg(method, several.ok=TRUE)
 	
-	if(class(control.method) != "list")
+	if(!is.list(control.method))
 		stop("'control.method' must be of class 'list'")
-	if(length(method)==1 & class(control.method[[1]]) != "list")
+	if(length(method)==1 & !is.list(control.method[[1]]))
 		control.method <- list(control.method)
 	if(length(control.method) != length(method))
 		stop("The number of components of 'control.method' must be equal to the number of methods being compared")
 	for(j in seq_along(method))
-		if(class(control.method[[j]]) != "list")
+		if(!is.list(control.method[[j]]))
 			stop("each component of 'control.method' must be of class 'list'")
 			
 	if(missing(objfn)) objfn <- NULL

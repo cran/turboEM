@@ -219,7 +219,7 @@ pairs.turbosim <- function(x, which.methods=seq_along(x$method), method.names = 
 					axis(2)
 					title(xlab=method.names[j], ylab=method.names[i], line=2.5)
 					##abline(0,1, col="purple", lwd=2)
-					if(class(reg) != "try-error") {
+					if(!inherits(reg, "try-error")){
 						title(main=paste("y = ", round(coef(reg)["x"], 2), "x", sep=""), line=1)
 						##title(main=paste("y = ", round(coef(reg)["(Intercept)"], 2), " + ", round(coef(reg)["x"], 2), "x", sep=""), line=1)
 						abline(reg=reg, col="black", lwd=2)

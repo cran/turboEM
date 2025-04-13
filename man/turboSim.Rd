@@ -25,7 +25,7 @@ turboSim(parmat, fixptfn, objfn, method = c("em","squarem","pem","decme","qn"),
 
     \item{project}{Optional function for defining a projection that maps an out-of-bound parameter value into the constrained parameter space. Requires the \code{pconstr} argument to be specified in order for the \code{project} to be applied.}
 
-    \item{parallel}{Logical indicating whether the \emph{repetitions} of the benchmark study will be run in parallel. Note that the parallel implementation is based on the \code{foreach} package, which depends on a \emph{parallel backend} being registered prior to running \code{turboSim()}. See *Details* of \code{\link{foreach}}.}
+    \item{parallel}{Logical indicating whether the \emph{repetitions} of the benchmark study will be run in parallel. Note that the parallel implementation is based on the \code{foreach} package, which depends on a \emph{parallel backend} being registered prior to running \code{turboSim()}. See *Details* of \code{\link[foreach:foreach]{foreach}}.}
 
     \item{method.names}{Vector of unique names that identify the algorithms being compared.}
 
